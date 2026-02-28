@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Clock, TrendingUp, GitBranch, Workflow, Gauge } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useSocket } from '@/hooks/use-socket';
 import { cn } from '@/lib/utils';
 import type { UsageStats } from '@/lib/usage-tracker';
@@ -59,6 +60,7 @@ interface StatusLineProps {
  * - Last completed attempt (if no running attempt)
  */
 export function StatusLine({ taskId, currentAttemptId, className }: StatusLineProps) {
+  const t = useTranslations('task');
   const socket = useSocket();
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [gitStats, setGitStats] = useState<GitStats | null>(null);
@@ -132,14 +134,14 @@ export function StatusLine({ taskId, currentAttemptId, className }: StatusLinePr
       {!hasRunningAttempt && !hasData && (
         <div className="flex items-center gap-1.5 text-muted-foreground/50">
           <TrendingUp className="size-3.5" />
-          <span>No attempt running. Send a message to start.</span>
+          <span>{t('noAttemptRunning')}</span>
         </div>
       )}
 
       {hasRunningAttempt && !hasData && (
         <div className="flex items-center gap-1.5 text-muted-foreground/50">
           <TrendingUp className="size-3.5 animate-pulse" />
-          <span>Waiting for tracking data...</span>
+          <span>{t('waitingForTracking')}</span>
         </div>
       )}
 
@@ -184,7 +186,7 @@ export function StatusLine({ taskId, currentAttemptId, className }: StatusLinePr
         <div className="flex items-center gap-1.5">
           <TrendingUp className="size-3.5" />
           <span className="font-medium">
-            {usage.totalTokens.toLocaleString()} tokens
+            {usage.totalTokens.toLocaleString()} {t('tokens')}
           </span>
           {usage.totalCostUSD > 0 && (
             <span className="text-muted-foreground/70">
@@ -193,7 +195,7 @@ export function StatusLine({ taskId, currentAttemptId, className }: StatusLinePr
           )}
           {usage.numTurns > 0 && (
             <span className="text-muted-foreground/70">
-              · {usage.numTurns} {usage.numTurns === 1 ? 'turn' : 'turns'}
+              · {usage.numTurns} {usage.numTurns === 1 ? t('turn') : t('turns')}
             </span>
           )}
           {usage.durationMs > 0 && (
@@ -215,7 +217,7 @@ export function StatusLine({ taskId, currentAttemptId, className }: StatusLinePr
             -{gitStats.deletions}
           </span>
           <span className="text-muted-foreground/70">
-            ({gitStats.filesChanged} {gitStats.filesChanged === 1 ? 'file' : 'files'})
+            ({gitStats.filesChanged} {gitStats.filesChanged === 1 ? t('file') : t('files')})
           </span>
         </div>
       )}

@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/types';
 import { cn, getProjectColor } from '@/lib/utils';
 import { GripVertical, MessageSquare, Trash2, Search, Network } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useTaskStore } from '@/stores/task-store';
 import { useProjectStore } from '@/stores/project-store';
 import { useQuestionsStore } from '@/stores/questions-store';
@@ -52,6 +53,8 @@ export function TaskCard({ task, attemptCount = 0, searchQuery = '', isMobile = 
   const { projects, selectedProjectIds, isAllProjectsMode } = useProjectStore();
   const { getByTaskId } = useQuestionsStore();
   const { getByTaskId: getWorkflowByTaskId } = useWorkflowStore();
+  const tTask = useTranslations('task');
+  const tKanban = useTranslations('kanban');
   const isSelected = selectedTaskId === task.id;
   const hasPendingQuestion = !!getByTaskId(task.id);
   const workflowEntry = getWorkflowByTaskId(task.id);
@@ -82,7 +85,7 @@ export function TaskCard({ task, attemptCount = 0, searchQuery = '', isMobile = 
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Delete task "${task.title}"?`)) return;
+    if (!confirm(tTask('deleteTaskConfirm', { title: task.title }))) return;
     try {
       await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
       deleteTask(task.id);
@@ -150,7 +153,7 @@ export function TaskCard({ task, attemptCount = 0, searchQuery = '', isMobile = 
               : '-left-1 -translate-x-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none',
             'hover:bg-muted'
           )}
-          aria-label="Drag to reorder"
+          aria-label={tKanban('dragToReorder')}
         >
           <GripVertical className="size-4" />
         </button>
@@ -184,7 +187,7 @@ export function TaskCard({ task, attemptCount = 0, searchQuery = '', isMobile = 
               'text-muted-foreground hover:text-destructive',
               'hover:bg-muted pointer-events-auto z-10'
             )}
-            aria-label="Delete task"
+            aria-label={tKanban('deleteTask')}
           >
             <Trash2 className="size-3" />
           </button>

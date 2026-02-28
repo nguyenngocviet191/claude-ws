@@ -113,7 +113,7 @@ export function Header({ onCreateTask, onAddProject, searchQuery: externalSearch
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2 top-2 h-5 w-5 flex items-center justify-center rounded-sm hover:bg-muted-foreground/20 transition-colors"
-                aria-label="Clear search"
+                aria-label={t('clearSearch')}
               >
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
@@ -292,7 +292,7 @@ export function Header({ onCreateTask, onAddProject, searchQuery: externalSearch
               <button
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2 top-2 h-5 w-5 flex items-center justify-center rounded-sm hover:bg-muted-foreground/20 transition-colors"
-                aria-label="Clear search"
+                aria-label={t('clearSearch')}
               >
                 <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
