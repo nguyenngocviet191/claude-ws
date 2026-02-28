@@ -107,6 +107,23 @@ export function InteractiveCommandOverlay() {
         )}
         {activeCommand.type === 'compact' && (
           <ConfirmDialog
+            title="Compact Conversation"
+            message="This will summarize the conversation to save context space. Continue?"
+            confirmLabel="Compact"
+            onConfirm={async () => {
+              const { setLoading, setError } = useInteractiveCommandStore.getState();
+              setLoading(true);
+              try {
+                const res = await fetch(`/api/tasks/${activeCommand.taskId}/compact`, { method: 'POST' });
+                if (!res.ok) {
+                  const data = await res.json();
+                  setError(data.error || 'Failed to compact');
+                  return;
+                }
+                closeCommand();
+              } catch (err) {
+                setError('Failed to compact conversation');
+              }
             title={t('compactConversation')}
             message={t('compactConversationConfirm')}
             confirmLabel={t('compact')}
