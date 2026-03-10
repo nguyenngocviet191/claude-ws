@@ -8,6 +8,7 @@ export interface Model {
   name: string;
   description?: string;
   tier: 'opus' | 'sonnet' | 'haiku';
+  group?: string;
 }
 
 // Available Claude models - single source of truth
@@ -18,24 +19,21 @@ export const AVAILABLE_MODELS: Model[] = [
     name: 'Claude Opus 4.6',
     description: 'Most capable model',
     tier: 'opus',
+    group: 'Claude Code CLI',
   },
   {
-    id: 'claude-sonnet-4-5-20250929',
-    name: 'Claude Sonnet 4.5',
+    id: 'claude-sonnet-4-6',
+    name: 'Claude Sonnet 4.6',
     description: 'Latest Sonnet model',
     tier: 'sonnet',
+    group: 'Claude Code CLI',
   },
   {
     id: 'claude-haiku-4-5-20251001',
     name: 'Claude Haiku 4.5',
     description: 'Fastest model',
     tier: 'haiku',
-  },
-  {
-    id: 'claude-3-5-sonnet-20241022',
-    name: 'Claude 3.5 Sonnet',
-    description: 'Previous Sonnet model',
-    tier: 'sonnet',
+    group: 'Claude Code CLI',
   },
 ];
 
