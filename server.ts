@@ -37,6 +37,7 @@ import { shellManager } from './src/lib/shell-manager';
 import { terminalManager } from './src/lib/terminal-manager';
 import { db, schema } from './src/lib/db';
 import { createLogger } from './src/lib/logger';
+import { safeCompare } from './src/lib/api-auth';
 
 const log = createLogger('Server');
 import { eq } from 'drizzle-orm';
@@ -76,7 +77,7 @@ app.prepare().then(async () => {
     if (isApiRoute && !isVerifyEndpoint && !isProxyEndpoint && !isTunnelStatusEndpoint && !isApiAccessKeyEndpoint && !isUploadsGetEndpoint && apiAccessKey && apiAccessKey.length > 0) {
       const providedKey = req.headers['x-api-key'];
 
-      if (!providedKey || providedKey !== apiAccessKey) {
+      if (!providedKey || typeof providedKey !== 'string' || !safeCompare(providedKey, apiAccessKey)) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Unauthorized', message: 'Valid API key required' }));
         return;
@@ -425,6 +426,18 @@ app.prepare().then(async () => {
         disconnectTimers.delete(data.attemptId);
         log.info({ attemptId: data.attemptId }, '[Server] Cleared disconnect timer on reconnect');
       }
+
+      // Re-emit pending question to this socket if one exists
+      // This ensures clients recover question state after task switches
+      const pendingQ = agentManager.getPendingQuestionData(data.attemptId);
+      if (pendingQ) {
+        log.info({ attemptId: data.attemptId, toolUseId: pendingQ.toolUseId }, '[Server] Re-emitting pending question on subscribe');
+        socket.emit('question:ask', {
+          attemptId: data.attemptId,
+          toolUseId: pendingQ.toolUseId,
+          questions: pendingQ.questions,
+        });
+      }
     });
 
     // Unsubscribe from attempt logs
@@ -438,6 +451,16 @@ app.prepare().then(async () => {
       async (data: { attemptId: string; toolUseId?: string; questions: unknown[]; answers: Record<string, string> }) => {
         const { attemptId, toolUseId, questions, answers } = data;
         log.info({ attemptId, answers }, '[Server] Received answer');
+
+        // Clear persistent question for this task (user has answered)
+        try {
+          const attempt = await db.query.attempts.findFirst({
+            where: eq(schema.attempts.id, attemptId),
+          });
+          if (attempt) {
+            agentManager.clearPersistentQuestion(attempt.taskId);
+          }
+        } catch { /* non-critical */ }
 
         // Check if there's a pending question (canUseTool callback waiting)
         if (agentManager.hasPendingQuestion(attemptId)) {
@@ -998,12 +1021,20 @@ app.prepare().then(async () => {
     });
 
     // Emit global question:new event for the questions panel
-    // Look up taskId from the attempt
+    // Also save to persistent storage (survives CLI auto-handle + attempt completion)
     try {
       const attempt = await db.query.attempts.findFirst({
         where: eq(schema.attempts.id, attemptId),
       });
       if (attempt) {
+        // Save to persistent question storage (keyed by taskId, survives agent cleanup)
+        agentManager.setPersistentQuestion(attempt.taskId, {
+          attemptId,
+          toolUseId,
+          questions,
+          timestamp: Date.now(),
+        });
+
         const task = await db.query.tasks.findFirst({
           where: eq(schema.tasks.id, attempt.taskId),
         });

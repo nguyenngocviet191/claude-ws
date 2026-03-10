@@ -22,14 +22,14 @@ function buildModelList(): Model[] {
 
   if (hasCustomAuth) {
     const envModels: Model[] = [];
-    const envVars = [
-      process.env.ANTHROPIC_MODEL,
-      process.env.ANTHROPIC_DEFAULT_OPUS_MODEL,
-      process.env.ANTHROPIC_DEFAULT_SONNET_MODEL,
-      process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL,
+    const envEntries: { value: string | undefined; envName: string }[] = [
+      { value: process.env.ANTHROPIC_MODEL, envName: 'ANTHROPIC_MODEL' },
+      { value: process.env.ANTHROPIC_DEFAULT_OPUS_MODEL, envName: 'ANTHROPIC_DEFAULT_OPUS_MODEL' },
+      { value: process.env.ANTHROPIC_DEFAULT_SONNET_MODEL, envName: 'ANTHROPIC_DEFAULT_SONNET_MODEL' },
+      { value: process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL, envName: 'ANTHROPIC_DEFAULT_HAIKU_MODEL' },
     ];
 
-    for (const value of envVars) {
+    for (const { value, envName } of envEntries) {
       if (value && !envModels.some((m) => m.id === value)) {
         const tier = value.toLowerCase().includes('opus')
           ? 'opus'
@@ -37,10 +37,16 @@ function buildModelList(): Model[] {
             ? 'haiku'
             : 'sonnet';
 
+        // Infer group from env var name
+        const group = envName.startsWith('ANTHROPIC_DEFAULT_')
+          ? 'Anthropic'
+          : undefined;
+
         envModels.push({
           id: value,
           name: modelIdToDisplayName(value),
           tier,
+          group,
         });
       }
     }

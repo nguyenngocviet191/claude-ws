@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Cpu, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useModelStore } from '@/stores/model-store';
@@ -37,6 +39,50 @@ export function ChatModelSelector({ disabled = false, taskId, taskLastModel }: C
     setModel(modelId, taskId);
   };
 
+  // Group models by group field, preserving order
+  const groupedModels = useMemo(() => {
+    const ungrouped: typeof availableModels = [];
+    const groups = new Map<string, typeof availableModels>();
+
+    for (const model of availableModels) {
+      if (model.group) {
+        const list = groups.get(model.group) ?? [];
+        list.push(model);
+        groups.set(model.group, list);
+      } else {
+        ungrouped.push(model);
+      }
+    }
+
+    return { ungrouped, groups };
+  }, [availableModels]);
+
+  const renderModelItem = (model: typeof availableModels[number]) => (
+    <DropdownMenuItem
+      key={model.id}
+      onClick={() => handleSelectModel(model.id)}
+      disabled={isLoading}
+      className={cn(
+        'flex items-center gap-2 cursor-pointer',
+        currentModel === model.id && 'bg-primary/10'
+      )}
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-sm">{model.name}</span>
+        </div>
+        {model.description && (
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            {model.description}
+          </p>
+        )}
+      </div>
+      {model.id === currentModel && (
+        <Check className="size-4 text-primary shrink-0" />
+      )}
+    </DropdownMenuItem>
+  );
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -64,30 +110,16 @@ export function ChatModelSelector({ disabled = false, taskId, taskLastModel }: C
         className="w-64 z-[9999]"
         sideOffset={8}
       >
-        {availableModels.map((model) => (
-          <DropdownMenuItem
-            key={model.id}
-            onClick={() => handleSelectModel(model.id)}
-            disabled={isLoading}
-            className={cn(
-              'flex items-center gap-2 cursor-pointer',
-              currentModel === model.id && 'bg-primary/10'
-            )}
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm">{model.name}</span>
-              </div>
-              {model.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                  {model.description}
-                </p>
-              )}
-            </div>
-            {model.id === currentModel && (
-              <Check className="size-4 text-primary shrink-0" />
-            )}
-          </DropdownMenuItem>
+        {groupedModels.ungrouped.map(renderModelItem)}
+        {groupedModels.ungrouped.length > 0 && groupedModels.groups.size > 0 && (
+          <DropdownMenuSeparator />
+        )}
+        {[...groupedModels.groups.entries()].map(([group, models], idx) => (
+          <div key={group}>
+            {idx > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="text-xs text-muted-foreground">{group}</DropdownMenuLabel>
+            {models.map(renderModelItem)}
+          </div>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>

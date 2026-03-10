@@ -36,7 +36,7 @@ function validatePath(targetPath: string, allowedRoot: string): string {
 function validateRootPath(rootPath: string): string {
   const resolved = path.resolve(rootPath);
   const home = os.homedir();
-  if (!resolved.startsWith(home)) {
+  if (!resolved.startsWith(home + path.sep) && resolved !== home) {
     throw new Error('Root path outside home directory');
   }
   return resolved;
@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(new Uint8Array(zipBuffer), {
         headers: {
           'Content-Type': 'application/zip',
-          'Content-Disposition': \`attachment; filename="${filename}.zip"\`,
+          'Content-Disposition': `attachment; filename="${filename}.zip"`,
           'Content-Length': zipBuffer.length.toString(),
         },
       });
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
       return new NextResponse(new Uint8Array(fileBuffer), {
         headers: {
           'Content-Type': contentType,
-          'Content-Disposition': \`attachment; filename="${filename}"\`,
+          'Content-Disposition': `attachment; filename="${filename}"`,
           'Content-Length': fileBuffer.length.toString(),
         },
       });
