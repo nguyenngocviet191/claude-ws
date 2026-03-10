@@ -5,37 +5,27 @@ import {
   DndContext,
   DragEndEvent,
   DragOverEvent,
-  DragOverlay,
   DragStartEvent,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
-  useDroppable,
   CollisionDetection,
-  pointerWithin,
-  rectIntersection,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useTranslations } from 'next-intl';
-import { Plus, Trash2, ArrowDown, Columns3 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Task, TaskStatus, KANBAN_COLUMNS } from '@/types';
 import { Column } from './column';
-import { TaskCard } from './task-card';
+import { MobileStatusTab } from '@/components/kanban/board-mobile-status-tabs';
+import { BoardColumnVisibilityFilter } from '@/components/kanban/board-column-visibility-filter';
+import { BoardDragOverlay } from '@/components/kanban/board-drag-overlay';
 import { useTaskStore } from '@/stores/task-store';
 import { usePanelLayoutStore } from '@/stores/panel-layout-store';
 import { useTouchDetection } from '@/hooks/use-touch-detection';
 import { useIsMobileViewport } from '@/hooks/use-mobile-viewport';
 import { useChatHistorySearch } from '@/hooks/use-chat-history-search';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 
 /**
  * Custom collision detector for mobile status tabs.
@@ -87,61 +77,6 @@ interface BoardProps {
   attempts?: Array<{ taskId: string; id: string }>;
   onCreateTask?: () => void;
   searchQuery?: string;
-}
-
-// Mobile status tab component that's droppable
-interface MobileStatusTabProps {
-  status: TaskStatus;
-  title: string;
-  count: number;
-  isActive: boolean;
-  isOver: boolean;
-  onClick: () => void;
-}
-
-function MobileStatusTab({ status, title, count, isActive, isOver, onClick }: MobileStatusTabProps) {
-  const { setNodeRef } = useDroppable({
-    id: `status-tab-${status}`,
-    data: {
-      type: 'status-tab',
-      status,
-    },
-  });
-
-  return (
-    <button
-      ref={setNodeRef}
-      onClick={onClick}
-      className={cn(
-        'relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors border-b-2 overflow-hidden',
-        isActive
-          ? 'border-primary text-foreground'
-          : 'border-transparent text-muted-foreground hover:text-foreground',
-        isOver && 'bg-accent/50'
-      )}
-    >
-      <span className={cn(
-        'transition-opacity duration-200',
-        isOver ? 'opacity-30' : ''
-      )}>
-        {title}
-      </span>
-      <span className={cn(
-        'text-[10px] px-1.5 py-0.5 rounded-full transition-opacity duration-200',
-        isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-        isOver && 'opacity-30'
-      )}>
-        {count}
-      </span>
-
-      {/* Drop indicator */}
-      {isOver && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full">
-          <ArrowDown className="h-4 w-4 text-primary" />
-        </div>
-      )}
-    </button>
-  );
 }
 
 export function Board({ attempts = [], onCreateTask, searchQuery = '' }: BoardProps) {
@@ -664,17 +599,11 @@ export function Board({ attempts = [], onCreateTask, searchQuery = '' }: BoardPr
           </div>
         </div>
 
-        <DragOverlay>
-          {activeTask ? (
-            <div className="rotate-3">
-              <TaskCard
-                task={activeTask}
-                attemptCount={attemptCounts.get(activeTask.id) || 0}
-                isMobile={isMobile}
-              />
-            </div>
-          ) : null}
-        </DragOverlay>
+        <BoardDragOverlay
+          activeTask={activeTask}
+          attemptCount={attemptCounts.get(activeTask?.id ?? '') || 0}
+          isMobile={isMobile}
+        />
       </DndContext>
     );
   }
@@ -697,29 +626,7 @@ export function Board({ attempts = [], onCreateTask, searchQuery = '' }: BoardPr
       onDragCancel={handleDragCancel}
     >
       <div className="flex flex-col h-full">
-        <div className="flex justify-end px-4 pt-2 pb-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-accent transition-colors">
-                <Columns3 className="h-3.5 w-3.5" />
-                <span>{t('columns')}</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{t('toggleColumns')}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {KANBAN_COLUMNS.map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  checked={!hiddenColumns.includes(column.id)}
-                  onCheckedChange={() => toggleColumn(column.id)}
-                >
-                  {t(column.titleKey)}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <BoardColumnVisibilityFilter hiddenColumns={hiddenColumns} onToggleColumn={toggleColumn} />
         <div className="flex gap-4 flex-1 min-h-0 overflow-x-auto pb-4 pl-4">
           {visibleColumns.map((column) => (
             <Column
@@ -737,17 +644,11 @@ export function Board({ attempts = [], onCreateTask, searchQuery = '' }: BoardPr
         </div>
       </div>
 
-      <DragOverlay>
-        {activeTask ? (
-          <div className="rotate-3">
-            <TaskCard
-              task={activeTask}
-              attemptCount={attemptCounts.get(activeTask.id) || 0}
-              isMobile={isMobile}
-            />
-          </div>
-        ) : null}
-      </DragOverlay>
+      <BoardDragOverlay
+        activeTask={activeTask}
+        attemptCount={attemptCounts.get(activeTask?.id ?? '') || 0}
+        isMobile={isMobile}
+      />
     </DndContext>
   );
 }
