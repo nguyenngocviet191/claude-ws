@@ -4,7 +4,7 @@
 
 **AI-powered workspace for solo CEOs and indie builders** — manage your entire business with AI agents, not just code. Kanban board, code editor, Git integration, claw agent hub, local-first SQLite.
 
-![Desktop](./public/desktop-review-0.jpeg)
+![Desktop](./public/desktop-review-0.png)
 
 ---
 
@@ -161,3 +161,14 @@ Next.js 16, React 19, Fastify 5, SQLite + Drizzle ORM, Socket.io, Claude Agent S
 ## License
 
 MIT
+
+---
+
+## Screenshots
+
+![Desktop](./public/desktop-review-0.png)
+![Desktop](./public/desktop-review-1.png)
+![Desktop](./public/desktop-review-2.png)
+![Desktop](./public/desktop-review-3.png)
+![Desktop](./public/desktop-review-4.png)
+![Mobile](./public/desktop-review-0.png)
