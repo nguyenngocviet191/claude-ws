@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq, asc } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
+import { createAttemptService } from '@agentic-sdk/services/attempt-crud-and-logs-service';
 import type { ClaudeOutput, AttemptFile } from '@/types';
+
+const taskService = createTaskService(db);
+const attemptService = createAttemptService(db);
 
 interface ConversationTurn {
   type: 'user' | 'assistant';
@@ -21,19 +25,13 @@ export async function GET(
     const { id: taskId } = await params;
 
     // Get all attempts for this task, ordered by creation time
-    const attempts = await db.query.attempts.findMany({
-      where: eq(schema.attempts.taskId, taskId),
-      orderBy: [asc(schema.attempts.createdAt)],
-    });
+    const attempts = await taskService.getAttemptsAsc(taskId);
 
     const turns: ConversationTurn[] = [];
 
     for (const attempt of attempts) {
       // Get files attached to this attempt
-      const files = await db.query.attemptFiles.findMany({
-        where: eq(schema.attemptFiles.attemptId, attempt.id),
-        orderBy: [asc(schema.attemptFiles.createdAt)],
-      });
+      const files = await attemptService.getFiles(attempt.id);
 
       // Add user turn (show displayPrompt if available, otherwise fall back to prompt)
       turns.push({
@@ -47,10 +45,7 @@ export async function GET(
       });
 
       // Get all JSON logs for this attempt
-      const logs = await db.query.attemptLogs.findMany({
-        where: eq(schema.attemptLogs.attemptId, attempt.id),
-        orderBy: [asc(schema.attemptLogs.createdAt)],
-      });
+      const logs = await attemptService.getLogs(attempt.id);
 
       // Parse JSON logs into messages
       // Collect ALL content blocks from ALL assistant messages

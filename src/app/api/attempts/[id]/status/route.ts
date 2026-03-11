@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { createAttemptService } from '@agentic-sdk/services/attempt-crud-and-logs-service';
+
+const attemptService = createAttemptService(db);
 
 // GET /api/attempts/[id]/status - Get attempt status only (lightweight)
 export async function GET(
@@ -10,17 +12,13 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const attempt = await db
-      .select({ status: schema.attempts.status })
-      .from(schema.attempts)
-      .where(eq(schema.attempts.id, id))
-      .limit(1);
+    const result = await attemptService.getStatus(id);
 
-    if (attempt.length === 0) {
+    if (!result) {
       return NextResponse.json({ error: 'Attempt not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ status: attempt[0].status });
+    return NextResponse.json({ status: result.status });
   } catch (error) {
     console.error('Failed to fetch attempt status:', error);
     return NextResponse.json(

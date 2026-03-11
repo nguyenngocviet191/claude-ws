@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { nanoid } from 'nanoid';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { db } from '@/lib/db';
 import type { TaskStatus } from '@/types';
+import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
+
+const taskService = createTaskService(db);
 
 // GET /api/tasks - List tasks
 // Query params:
@@ -17,38 +18,24 @@ export async function GET(request: NextRequest) {
     const projectIds = searchParams.get('projectIds');
     const statusParam = searchParams.get('status');
 
-    // Build status filter conditions
     const validStatuses: TaskStatus[] = ['todo', 'in_progress', 'in_review', 'done', 'cancelled'];
-    let statusFilter: ReturnType<typeof inArray> | undefined;
+    let statuses: string[] | undefined;
     if (statusParam) {
-      const statuses = statusParam.split(',').filter((s): s is TaskStatus => validStatuses.includes(s as TaskStatus));
-      if (statuses.length > 0) {
-        statusFilter = inArray(schema.tasks.status, statuses);
-      }
+      statuses = statusParam.split(',').filter((s): s is TaskStatus => validStatuses.includes(s as TaskStatus));
+      if (statuses.length === 0) statuses = undefined;
     }
 
-    // Build project filter conditions
-    let projectFilter: ReturnType<typeof eq> | ReturnType<typeof inArray> | undefined;
+    let projectIdsList: string[] | undefined;
     if (projectIds) {
-      const ids = projectIds.split(',').filter(Boolean);
-      if (ids.length > 0) {
-        projectFilter = inArray(schema.tasks.projectId, ids);
-      }
-    } else if (projectId) {
-      projectFilter = eq(schema.tasks.projectId, projectId);
+      projectIdsList = projectIds.split(',').filter(Boolean);
+      if (projectIdsList.length === 0) projectIdsList = undefined;
     }
 
-    // Combine filters
-    const conditions = [projectFilter, statusFilter].filter(Boolean);
-    const whereClause = conditions.length > 0
-      ? conditions.length === 1 ? conditions[0] : and(...conditions)
-      : undefined;
-
-    const tasks = await db
-      .select()
-      .from(schema.tasks)
-      .where(whereClause)
-      .orderBy(schema.tasks.status, schema.tasks.position);
+    const tasks = await taskService.listFiltered({
+      projectId: projectIdsList ? undefined : (projectId || undefined),
+      projectIds: projectIdsList,
+      statuses,
+    });
 
     return NextResponse.json(tasks);
   } catch (error) {
@@ -77,33 +64,7 @@ export async function POST(request: NextRequest) {
     const validStatuses: TaskStatus[] = ['todo', 'in_progress', 'in_review', 'done', 'cancelled'];
     const taskStatus: TaskStatus = status && validStatuses.includes(status) ? status : 'todo';
 
-    // Get the highest position for this status in this project
-    const tasksInStatus = await db
-      .select()
-      .from(schema.tasks)
-      .where(
-        and(
-          eq(schema.tasks.projectId, projectId),
-          eq(schema.tasks.status, taskStatus)
-        )
-      )
-      .orderBy(desc(schema.tasks.position))
-      .limit(1);
-
-    const position = tasksInStatus.length > 0 ? tasksInStatus[0].position + 1 : 0;
-
-    const newTask = {
-      id: nanoid(),
-      projectId,
-      title,
-      description: description || null,
-      status: taskStatus,
-      position,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    await db.insert(schema.tasks).values(newTask);
+    const newTask = await taskService.create({ projectId, title, description, status: taskStatus });
 
     return NextResponse.json(newTask, { status: 201 });
   } catch (error: any) {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq, and } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { createShellService } from '@agentic-sdk/services/shell-process-db-tracking-service';
+
+const shellService = createShellService(db);
 
 // GET /api/shells?projectId=xxx - List shells for a project
 export async function GET(request: NextRequest) {
@@ -15,13 +17,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const shells = await db.query.shells.findMany({
-      where: eq(schema.shells.projectId, projectId),
-      orderBy: (shells, { desc }) => [desc(shells.createdAt)],
-    });
+    const shells = await shellService.list(projectId);
 
     // Map to frontend format
-    const shellInfos = shells.map((s) => ({
+    const shellInfos = shells.map((s: any) => ({
       shellId: s.id,
       projectId: s.projectId,
       attemptId: s.attemptId || '',

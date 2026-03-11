@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
 import { createLogger } from '@/lib/logger';
+import { createProjectService } from '@agentic-sdk/services/project-crud-service';
 
 const log = createLogger('ProjectById');
+const projectService = createProjectService(db);
 
 // GET /api/projects/[id] - Get a single project
 export async function GET(
@@ -13,20 +14,16 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const project = await db
-      .select()
-      .from(schema.projects)
-      .where(eq(schema.projects.id, id))
-      .limit(1);
+    const project = await projectService.getById(id);
 
-    if (project.length === 0) {
+    if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(project[0]);
+    return NextResponse.json(project);
   } catch (error) {
     log.error({ error }, 'Failed to fetch project');
     return NextResponse.json(
@@ -53,29 +50,20 @@ export async function PUT(
       );
     }
 
-    const updateData: any = {};
+    const updateData: Partial<{ name: string; path: string }> = {};
     if (name) updateData.name = name;
     if (path) updateData.path = path;
 
-    const result = await db
-      .update(schema.projects)
-      .set(updateData)
-      .where(eq(schema.projects.id, id));
+    const updatedProject = await projectService.update(id, updateData);
 
-    if (result.changes === 0) {
+    if (!updatedProject) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
 
-    const updatedProject = await db
-      .select()
-      .from(schema.projects)
-      .where(eq(schema.projects.id, id))
-      .limit(1);
-
-    return NextResponse.json(updatedProject[0]);
+    return NextResponse.json(updatedProject);
   } catch (error: any) {
     log.error({ error }, 'Failed to update project');
 
@@ -102,16 +90,16 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    const result = await db
-      .delete(schema.projects)
-      .where(eq(schema.projects.id, id));
-
-    if (result.changes === 0) {
+    // Check existence first since service.remove() doesn't return change count
+    const existing = await projectService.getById(id);
+    if (!existing) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
+
+    await projectService.remove(id);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

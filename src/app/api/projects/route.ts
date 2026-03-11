@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { nanoid } from 'nanoid';
-import { desc } from 'drizzle-orm';
+import { db } from '@/lib/db';
 import { mkdir, writeFile, access } from 'fs/promises';
 import { join } from 'path';
 import { createLogger } from '@/lib/logger';
+import { createProjectService } from '@agentic-sdk/services/project-crud-service';
 
 const log = createLogger('Projects');
+const projectService = createProjectService(db);
 
 // GET /api/projects - List all projects
 export async function GET() {
   try {
-    const projects = await db
-      .select()
-      .from(schema.projects)
-      .orderBy(desc(schema.projects.createdAt));
+    const projects = await projectService.list();
 
     return NextResponse.json(projects);
   } catch (error) {
@@ -62,14 +59,7 @@ export async function POST(request: NextRequest) {
       await writeFile(claudeMdPath, claudeMdContent, 'utf-8');
     }
 
-    const newProject = {
-      id: nanoid(),
-      name,
-      path,
-      createdAt: Date.now(),
-    };
-
-    await db.insert(schema.projects).values(newProject);
+    const newProject = await projectService.create({ name, path });
 
     return NextResponse.json(newProject, { status: 201 });
   } catch (error: any) {

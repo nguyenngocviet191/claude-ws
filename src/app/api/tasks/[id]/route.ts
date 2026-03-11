@@ -6,8 +6,10 @@ import { join } from 'path';
 import { UPLOADS_DIR } from '@/lib/file-utils';
 import type { TaskStatus } from '@/types';
 import { createLogger } from '@/lib/logger';
+import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
 
 const log = createLogger('TaskById');
+const taskService = createTaskService(db);
 
 // GET /api/tasks/[id] - Get a single task
 export async function GET(
@@ -17,20 +19,16 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const task = await db
-      .select()
-      .from(schema.tasks)
-      .where(eq(schema.tasks.id, id))
-      .limit(1);
+    const task = await taskService.getById(id);
 
-    if (task.length === 0) {
+    if (!task) {
       return NextResponse.json(
         { error: 'Task not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(task[0]);
+    return NextResponse.json(task);
   } catch (error) {
     log.error({ error }, 'Failed to fetch task');
     return NextResponse.json(
@@ -66,9 +64,16 @@ export async function PUT(
       );
     }
 
-    const updateData: any = {
-      updatedAt: Date.now(),
-    };
+    // Check existence first
+    const existing = await taskService.getById(id);
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    const updateData: any = {};
 
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
@@ -77,25 +82,9 @@ export async function PUT(
     if (chatInit !== undefined) updateData.chatInit = chatInit ? 1 : 0;
     if (lastModel !== undefined) updateData.lastModel = lastModel;
 
-    const result = await db
-      .update(schema.tasks)
-      .set(updateData)
-      .where(eq(schema.tasks.id, id));
+    const updatedTask = await taskService.update(id, updateData);
 
-    if (result.changes === 0) {
-      return NextResponse.json(
-        { error: 'Task not found' },
-        { status: 404 }
-      );
-    }
-
-    const updatedTask = await db
-      .select()
-      .from(schema.tasks)
-      .where(eq(schema.tasks.id, id))
-      .limit(1);
-
-    return NextResponse.json(updatedTask[0]);
+    return NextResponse.json(updatedTask);
   } catch (error) {
     log.error({ error }, 'Failed to update task');
     return NextResponse.json(
@@ -121,6 +110,15 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    // Check existence first
+    const existing = await taskService.getById(id);
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
     // Query attempt IDs to clean up upload directories before DB cascade
     const attempts = await db
       .select({ id: schema.attempts.id })
@@ -137,16 +135,7 @@ export async function DELETE(
       }
     }
 
-    const result = await db
-      .delete(schema.tasks)
-      .where(eq(schema.tasks.id, id));
-
-    if (result.changes === 0) {
-      return NextResponse.json(
-        { error: 'Task not found' },
-        { status: 404 }
-      );
-    }
+    await taskService.remove(id);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
