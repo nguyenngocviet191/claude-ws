@@ -1,8 +1,8 @@
 # Claude Workspace
 
-> **DISCLAIMER:** This software is provided "AS IS" without warranty. [Read full disclaimer](./DISCLAIMER.md).
-
 **AI-powered workspace for solo CEOs and indie builders** — manage your entire business with AI agents, not just code. Kanban board, code editor, Git integration, claw agent hub, local-first SQLite.
+
+> **DISCLAIMER:** This software is provided "AS IS" without warranty. [Read full disclaimer](./DISCLAIMER.md).
 
 ![Desktop](./public/desktop-review-0.png)
 
