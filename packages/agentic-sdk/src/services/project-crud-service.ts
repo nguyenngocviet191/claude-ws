@@ -1,14 +1,14 @@
 /**
  * Project CRUD service - list, get, create, update, delete projects in SQLite via Drizzle ORM
  */
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import * as schema from '../db/database-schema.ts';
 import { generateId } from '../lib/nanoid-id-generator.ts';
 
 export function createProjectService(db: any) {
   return {
     async list() {
-      return db.select().from(schema.projects).all();
+      return db.select().from(schema.projects).orderBy(desc(schema.projects.createdAt)).all();
     },
 
     async getById(id: string) {

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { projects } from '@/lib/db/schema';
 import { verifyApiKey, unauthorizedResponse } from '@/lib/api-auth';
-import { eq } from 'drizzle-orm';
+import { createProjectService } from '@agentic-sdk/services/project-crud-service';
+
+const projectService = createProjectService(db);
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync, copyFileSync } from 'fs';
 import { join } from 'path';
 import { createLogger } from '@/lib/logger';
@@ -61,11 +62,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const project = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, id))
-      .get();
+    const project = await projectService.getById(id);
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
@@ -95,11 +92,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const project = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.id, id))
-      .get();
+    const project = await projectService.getById(id);
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });

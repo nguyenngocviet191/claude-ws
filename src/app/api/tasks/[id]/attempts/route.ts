@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq, desc } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
+
+const taskService = createTaskService(db);
 
 // GET /api/tasks/[id]/attempts - List attempts for a task
 export async function GET(
@@ -11,19 +13,14 @@ export async function GET(
     const { id: taskId } = await params;
 
     // Verify task exists
-    const task = await db.query.tasks.findFirst({
-      where: eq(schema.tasks.id, taskId),
-    });
+    const task = await taskService.getById(taskId);
 
     if (!task) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
     // Fetch attempts for this task
-    const attempts = await db.query.attempts.findMany({
-      where: eq(schema.attempts.taskId, taskId),
-      orderBy: [desc(schema.attempts.createdAt)],
-    });
+    const attempts = await taskService.getAttempts(taskId);
 
     return NextResponse.json({ attempts });
   } catch (error) {

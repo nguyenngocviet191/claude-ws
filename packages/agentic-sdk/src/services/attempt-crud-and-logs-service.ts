@@ -83,6 +83,13 @@ export function createAttemptService(db: any) {
         .all();
     },
 
+    async getFiles(attemptId: string) {
+      return db.select().from(schema.attemptFiles)
+        .where(eq(schema.attemptFiles.attemptId, attemptId))
+        .orderBy(schema.attemptFiles.createdAt)
+        .all();
+    },
+
     async getStatus(id: string) {
       const row = await db
         .select({ id: schema.attempts.id, status: schema.attempts.status, completedAt: schema.attempts.completedAt })

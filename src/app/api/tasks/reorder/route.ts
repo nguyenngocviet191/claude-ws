@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
 import type { TaskStatus } from '@/types';
 import { createLogger } from '@/lib/logger';
+import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
 
 const log = createLogger('TaskReorder');
+const taskService = createTaskService(db);
 
 interface ReorderItem {
   id: string;
@@ -34,21 +35,16 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const result = await db
-      .update(schema.tasks)
-      .set({
-        status,
-        position,
-        updatedAt: Date.now(),
-      })
-      .where(eq(schema.tasks.id, taskId));
-
-    if (result.changes === 0) {
+    // Check existence first
+    const existing = await taskService.getById(taskId);
+    if (!existing) {
       return NextResponse.json(
         { error: 'Task not found' },
         { status: 404 }
       );
     }
+
+    await taskService.reorder(taskId, position, status);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -89,25 +85,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update all tasks in a transaction-like manner
-    // Note: better-sqlite3 is synchronous, so we can do sequential updates safely
-    const updatedAt = Date.now();
+    // Update all tasks sequentially via service
     const errors: string[] = [];
 
     for (const task of tasks) {
       try {
-        const result = await db
-          .update(schema.tasks)
-          .set({
-            status: task.status,
-            position: task.position,
-            updatedAt,
-          })
-          .where(eq(schema.tasks.id, task.id));
-
-        if (result.changes === 0) {
-          errors.push(`Task ${task.id} not found`);
-        }
+        await taskService.reorder(task.id, task.position, task.status);
       } catch (error) {
         log.error({ error, taskId: task.id }, 'Failed to update task');
         errors.push(`Failed to update task ${task.id}`);

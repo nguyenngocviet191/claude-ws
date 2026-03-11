@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, schema } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
 import { formatOutput } from '@/lib/output-formatter';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { getContentTypeForFormat } from '@/lib/content-types';
+import { createAttemptService } from '@agentic-sdk/services/attempt-crud-and-logs-service';
 import type { ClaudeOutput, OutputFormat } from '@/types';
+
+const attemptService = createAttemptService(db);
 
 // GET /api/attempts/[id] - Get attempt with logs
 export async function GET(
@@ -17,21 +19,17 @@ export async function GET(
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 
-    // Fetch the attempt
-    const attempt = await db
-      .select()
-      .from(schema.attempts)
-      .where(eq(schema.attempts.id, id))
-      .limit(1);
+    // Fetch the attempt with logs
+    const result = await attemptService.getById(id);
 
-    if (attempt.length === 0) {
+    if (!result) {
       return NextResponse.json(
         { error: 'Attempt not found' },
         { status: 404 }
       );
     }
 
-    const attemptData = attempt[0];
+    const { logs, ...attemptData } = result;
 
     // Check if ?output_format query param is present
     const wantsFormatted = searchParams.has('output_format');
@@ -68,13 +66,6 @@ export async function GET(
       );
     }
 
-    // Fetch logs for this attempt
-    const logs = await db
-      .select()
-      .from(schema.attemptLogs)
-      .where(eq(schema.attemptLogs.attemptId, id))
-      .orderBy(schema.attemptLogs.createdAt);
-
     // Default: return original JSON structure with logs
     if (!storedFormat || storedFormat === 'json') {
       return NextResponse.json({
@@ -85,8 +76,8 @@ export async function GET(
 
     // Format according to the stored outputFormat
     const messages: ClaudeOutput[] = logs
-      .filter(log => log.type === 'json')
-      .map(log => {
+      .filter((log: { type: string }) => log.type === 'json')
+      .map((log: { content: string }) => {
         try {
           return JSON.parse(log.content) as ClaudeOutput;
         } catch {
@@ -127,20 +118,16 @@ export async function POST(
     const { id } = await params;
 
     // Get the attempt
-    const attempt = await db
-      .select()
-      .from(schema.attempts)
-      .where(eq(schema.attempts.id, id))
-      .limit(1);
+    const result = await attemptService.getById(id);
 
-    if (attempt.length === 0) {
+    if (!result) {
       return NextResponse.json(
         { error: 'Attempt not found' },
         { status: 404 }
       );
     }
 
-    const attemptData = attempt[0];
+    const { logs: _logs, ...attemptData } = result;
 
     // Only reactivate attempts that are not already running
     if (attemptData.status === 'running') {
@@ -152,13 +139,7 @@ export async function POST(
     }
 
     // Reactivate the attempt
-    await db
-      .update(schema.attempts)
-      .set({
-        status: 'running',
-        completedAt: null,  // Clear completion time
-      })
-      .where(eq(schema.attempts.id, id));
+    await attemptService.updateStatus(id, 'running', { completedAt: null as any });
 
     console.log(`[reactivate] Reactivated attempt ${id} for task ${attemptData.taskId}`);
 

@@ -1,7 +1,7 @@
 /**
  * Task CRUD service - list, get, create, update, delete, reorder tasks and fetch attempt/conversation data
  */
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import * as schema from '../db/database-schema.ts';
 import { generateId } from '../lib/nanoid-id-generator.ts';
 
@@ -67,6 +67,32 @@ export function createTaskService(db: any) {
       return db.select().from(schema.attempts)
         .where(eq(schema.attempts.taskId, taskId))
         .orderBy(desc(schema.attempts.createdAt))
+        .all();
+    },
+
+    async listFiltered(opts?: { projectId?: string; projectIds?: string[]; statuses?: string[] }) {
+      const conditions: any[] = [];
+      if (opts?.projectIds?.length) {
+        conditions.push(inArray(schema.tasks.projectId, opts.projectIds));
+      } else if (opts?.projectId) {
+        conditions.push(eq(schema.tasks.projectId, opts.projectId));
+      }
+      if (opts?.statuses?.length) {
+        conditions.push(inArray(schema.tasks.status, opts.statuses));
+      }
+      const whereClause = conditions.length > 0
+        ? conditions.length === 1 ? conditions[0] : and(...conditions)
+        : undefined;
+      return db.select().from(schema.tasks)
+        .where(whereClause)
+        .orderBy(schema.tasks.status, schema.tasks.position)
+        .all();
+    },
+
+    async getAttemptsAsc(taskId: string) {
+      return db.select().from(schema.attempts)
+        .where(eq(schema.attempts.taskId, taskId))
+        .orderBy(schema.attempts.createdAt)
         .all();
     },
 

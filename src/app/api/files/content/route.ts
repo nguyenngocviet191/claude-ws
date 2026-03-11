@@ -1,77 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { getContentTypeForExtension } from '@/lib/content-types';
+import { createFileTreeAndContentService } from '@agentic-sdk/services/file-tree-and-content-service';
 
-// Max file size: 10MB
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
-// Language mapping by extension (must match CodeMirror language keys)
-const LANGUAGE_MAP: Record<string, string | null> = {
-  // JavaScript/TypeScript
-  '.js': 'javascript',
-  '.jsx': 'jsx',
-  '.ts': 'typescript',
-  '.tsx': 'tsx',
-  '.mjs': 'javascript',
-  '.cjs': 'javascript',
-  // Web
-  '.html': 'html',
-  '.htm': 'html',
-  '.css': 'css',
-  '.scss': 'css',
-  '.sass': 'css',
-  '.less': 'css',
-  // Data
-  '.json': 'json',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.xml': 'xml',
-  '.toml': null, // Not supported
-  // Config
-  '.env': null,
-  '.gitignore': null,
-  '.dockerignore': null,
-  // Markdown
-  '.md': 'markdown',
-  '.mdx': 'markdown',
-  // Shell (not supported in CodeMirror, will be plain text)
-  '.sh': null,
-  '.bash': null,
-  '.zsh': null,
-  // Python
-  '.py': 'python',
-  // Go (not supported)
-  '.go': null,
-  // Rust
-  '.rs': 'rust',
-  // SQL
-  '.sql': 'sql',
-  // PHP
-  '.php': 'php',
-  // Java
-  '.java': 'java',
-  // C/C++
-  '.c': 'cpp',
-  '.cpp': 'cpp',
-  '.cc': 'cpp',
-  '.h': 'cpp',
-  '.hpp': 'cpp',
-  // Others
-  '.txt': null,
-  '.log': null,
-};
-
-// Binary file extensions (don't try to read as text)
-const BINARY_EXTENSIONS = [
-  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.svg',
-  '.pdf', '.doc', '.docx', '.xls', '.xlsx',
-  '.zip', '.tar', '.gz', '.rar',
-  '.exe', '.dll', '.so', '.dylib',
-  '.woff', '.woff2', '.ttf', '.eot',
-  '.mp3', '.mp4', '.wav', '.avi', '.mov',
-];
+const fileContentService = createFileTreeAndContentService();
 
 // GET /api/files/content?path=xxx&basePath=xxx
 export async function GET(request: NextRequest) {
@@ -87,101 +17,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Construct full path and validate it's within basePath
-    const fullPath = path.resolve(basePath, filePath);
-    const normalizedBase = path.resolve(basePath);
-
-    // Security: validate basePath is within home directory
-    const home = os.homedir();
-    if (!normalizedBase.startsWith(home + path.sep) && normalizedBase !== home) {
-      return NextResponse.json(
-        { error: 'Access denied: base path outside home directory' },
-        { status: 403 }
-      );
+    const result = fileContentService.getFileContentSync(basePath, filePath);
+    return NextResponse.json(result);
+  } catch (error: any) {
+    const msg = error?.message || '';
+    if (msg === 'Access denied: base path outside home directory') {
+      return NextResponse.json({ error: msg }, { status: 403 });
     }
-
-    // Security: prevent directory traversal
-    if (!fullPath.startsWith(normalizedBase)) {
-      return NextResponse.json(
-        { error: 'Invalid path: directory traversal detected' },
-        { status: 403 }
-      );
+    if (msg === 'Invalid path: directory traversal detected') {
+      return NextResponse.json({ error: msg }, { status: 403 });
     }
-
-    // Check file exists
-    if (!fs.existsSync(fullPath)) {
+    if (msg === 'File not found') {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
-
-    const stats = fs.statSync(fullPath);
-
-    // Check it's a file
-    if (!stats.isFile()) {
-      return NextResponse.json({ error: 'Path is not a file' }, { status: 400 });
+    if (msg === 'Path is not a file') {
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
-
-    // Check file size
-    if (stats.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'File too large', size: stats.size, maxSize: MAX_FILE_SIZE },
-        { status: 413 }
-      );
+    if (msg === 'File too large') {
+      return NextResponse.json({ error: 'File too large' }, { status: 413 });
     }
-
-    const ext = path.extname(fullPath).toLowerCase();
-    const mtimeMs = stats.mtimeMs; // Modified time in milliseconds
-
-    // Check if binary
-    if (BINARY_EXTENSIONS.includes(ext)) {
-      return NextResponse.json({
-        content: null,
-        language: null,
-        size: stats.size,
-        isBinary: true,
-        mimeType: getContentTypeForExtension(ext),
-        mtime: mtimeMs,
-      });
-    }
-
-    // Read file content
-    const content = fs.readFileSync(fullPath, 'utf-8');
-    const language = LANGUAGE_MAP[ext] || detectLanguage(fullPath);
-
-    return NextResponse.json({
-      content,
-      language,
-      size: stats.size,
-      isBinary: false,
-      mimeType: getContentTypeForExtension(ext),
-      mtime: mtimeMs,
-    });
-  } catch (error) {
     console.error('Error reading file:', error);
-    return NextResponse.json(
-      { error: 'Failed to read file' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to read file' }, { status: 500 });
   }
-}
-
-function detectLanguage(filePath: string): string | null {
-  const fileName = path.basename(filePath);
-
-  // Special file names
-  const specialFiles: Record<string, string | null> = {
-    'Dockerfile': null,
-    'Makefile': null,
-    '.eslintrc': 'json',
-    '.prettierrc': 'json',
-    'tsconfig.json': 'json',
-    'package.json': 'json',
-  };
-
-  if (specialFiles[fileName] !== undefined) {
-    return specialFiles[fileName];
-  }
-
-  return null;
 }
 
 // POST /api/files/content - Save file content
@@ -190,7 +47,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { basePath, path: filePath, content } = body;
 
-    // Validate required fields
     if (!filePath || !basePath || typeof content !== 'string') {
       return NextResponse.json(
         { error: 'basePath, path, and content are required' },
@@ -198,70 +54,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Construct full path and validate within basePath
-    const fullPath = path.resolve(basePath, filePath);
-    const normalizedBase = path.resolve(basePath);
-
-    // Security: validate basePath is within home directory
-    const home = os.homedir();
-    if (!normalizedBase.startsWith(home + path.sep) && normalizedBase !== home) {
-      return NextResponse.json(
-        { error: 'Access denied: base path outside home directory' },
-        { status: 403 }
-      );
+    const result = fileContentService.saveFileContentSync(basePath, filePath, content);
+    return NextResponse.json(result);
+  } catch (error: any) {
+    const msg = error?.message || '';
+    if (msg === 'Access denied: base path outside home directory') {
+      return NextResponse.json({ error: msg }, { status: 403 });
     }
-
-    // Security: prevent directory traversal
-    if (!fullPath.startsWith(normalizedBase)) {
-      return NextResponse.json(
-        { error: 'Invalid path: directory traversal detected' },
-        { status: 403 }
-      );
+    if (msg === 'Invalid path: directory traversal detected') {
+      return NextResponse.json({ error: msg }, { status: 403 });
     }
-
-    // Check file exists (no creating new files via this endpoint)
-    if (!fs.existsSync(fullPath)) {
-      return NextResponse.json(
-        { error: 'File not found' },
-        { status: 404 }
-      );
+    if (msg === 'File not found') {
+      return NextResponse.json({ error: msg }, { status: 404 });
     }
-
-    const stats = fs.statSync(fullPath);
-
-    // Check it's a file
-    if (!stats.isFile()) {
-      return NextResponse.json(
-        { error: 'Path is not a file' },
-        { status: 400 }
-      );
+    if (msg === 'Path is not a file') {
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
-
-    const ext = path.extname(fullPath).toLowerCase();
-
-    // Prevent writing to binary files
-    if (BINARY_EXTENSIONS.includes(ext)) {
-      return NextResponse.json(
-        { error: 'Cannot write to binary files' },
-        { status: 400 }
-      );
+    if (msg === 'Cannot write to binary files') {
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
-
-    // Write file content
-    fs.writeFileSync(fullPath, content, 'utf-8');
-
-    // Get new file stats
-    const newStats = fs.statSync(fullPath);
-
-    return NextResponse.json({
-      success: true,
-      size: newStats.size,
-    });
-  } catch (error) {
     console.error('Error writing file:', error);
-    return NextResponse.json(
-      { error: 'Failed to write file' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to write file' }, { status: 500 });
   }
 }
