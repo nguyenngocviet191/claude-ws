@@ -28,6 +28,7 @@ import { ProjectSelector, ProjectSelectorContent } from '@/components/header/pro
 import { useQuestionsStore } from '@/stores/questions-store';
 import { useWorkflowStore } from '@/stores/workflow-store';
 import { useTranslations } from 'next-intl';
+import { PreviewButton } from '@/components/header/preview-button';
 
 interface HeaderProps {
   onCreateTask: () => void;
@@ -152,7 +153,8 @@ export function Header({ onCreateTask, onAddProject, searchQuery: externalSearch
           {/* Desktop: Project selector */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <ProjectSelector onAddProject={onAddProject} />
-            <span className="text-xs text-muted-foreground">
+            <PreviewButton />
+            <span className="text-xs text-muted-foreground mr-1">
               ({tasks.length} tasks)
             </span>
           </div>

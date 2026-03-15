@@ -49,6 +49,8 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
 
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
   const [selectedAgentSets, setSelectedAgentSets] = useState<string[]>([]);
+  const [devCommand, setDevCommand] = useState<string>('');
+  const [devPort, setDevPort] = useState<string>('3000');
   const [hasChanges, setHasChanges] = useState(false);
   const [installResult, setInstallResult] = useState<InstallResult | null>(null);
   const [actuallyInstalledIds, setActuallyInstalledIds] = useState<string[]>([]);
@@ -93,6 +95,8 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
       const s = settings[projectId];
       setSelectedComponents(s.selectedComponents || []);
       setSelectedAgentSets(s.selectedAgentSets || []);
+      setDevCommand(s.devCommand || '');
+      setDevPort(String(s.devPort || '3000'));
       setHasChanges(false);
       loadedProjectIdRef.current = projectId;
     }
@@ -104,6 +108,8 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
       await updateProjectSettings(projectId, {
         selectedComponents,
         selectedAgentSets,
+        devCommand: devCommand || undefined,
+        devPort: devPort ? parseInt(devPort) : undefined,
       });
 
       // Install components to project folder
@@ -186,6 +192,35 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
               <div className="space-y-2">
                 <Label>Project Path</Label>
                 <Input value={selectedProject?.path || ''} readOnly className="font-mono text-sm" />
+              </div>
+
+              {/* Dev settings for preview */}
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t mt-4">
+                <div className="space-y-2">
+                  <Label>Dev Command (Preview)</Label>
+                  <Input 
+                    placeholder="npm run dev" 
+                    value={devCommand} 
+                    onChange={(e) => {
+                      setDevCommand(e.target.value);
+                      setHasChanges(true);
+                    }} 
+                  />
+                  <p className="text-[10px] text-muted-foreground">Command to start dev server</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Dev Port (Preview)</Label>
+                  <Input 
+                    type="number" 
+                    placeholder="3000" 
+                    value={devPort} 
+                    onChange={(e) => {
+                      setDevPort(e.target.value);
+                      setHasChanges(true);
+                    }} 
+                  />
+                  <p className="text-[10px] text-muted-foreground">Port where dev server runs</p>
+                </div>
               </div>
 
               {/* Installation status */}

@@ -28,6 +28,8 @@ export interface FormattedResponse {
 export interface ProjectSettings {
   selectedComponents: string[]; // Component IDs
   selectedAgentSets: string[]; // Agent set IDs
+  devCommand?: string;
+  devPort?: number;
 }
 
 // Project type

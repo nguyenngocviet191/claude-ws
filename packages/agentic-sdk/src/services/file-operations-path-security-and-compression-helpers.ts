@@ -14,11 +14,16 @@ import * as tar from 'tar';
 // Path security helpers
 // ---------------------------------------------------------------------------
 
-/** Resolve rootPath and assert it is within the user's home directory */
+/** Resolve rootPath and assert it is within the user's home directory or the current workspace */
 export function validateRootPath(rootPath: string): string {
   const resolved = path.resolve(rootPath);
-  const home = os.homedir();
-  if (!resolved.startsWith(home + path.sep) && resolved !== home) {
+  const home = process.env.ALLOWED_HOME_DIR ? path.resolve(process.env.ALLOWED_HOME_DIR) : os.homedir();
+  const workspace = process.cwd();
+
+  const isUnderHome = resolved.startsWith(home + path.sep) || resolved === home;
+  const isUnderWorkspace = resolved.startsWith(workspace + path.sep) || resolved === workspace;
+
+  if (!isUnderHome && !isUnderWorkspace) {
     throw new Error('Root path outside home directory');
   }
   return resolved;

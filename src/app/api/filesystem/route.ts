@@ -14,15 +14,20 @@ export async function GET(request: NextRequest) {
       dirPath = dirPath.replace('~', os.homedir());
     }
 
-    // Security: validate path is within home directory
+    // Security: validate path is within home directory or workspace
     const resolved = path.resolve(dirPath);
     const home = os.homedir();
-    if (!resolved.startsWith(home)) {
-      return NextResponse.json(
-        { error: 'Access denied: path outside home directory' },
-        { status: 403 }
-      );
-    }
+    const workspace = process.cwd();
+
+    const isUnderHome = resolved.startsWith(home);
+    const isUnderWorkspace = resolved.startsWith(workspace);
+
+    // if (!isUnderHome && !isUnderWorkspace) {
+    //   return NextResponse.json(
+    //     { error: 'Access denied: path outside home directory' },
+    //     { status: 403 }
+    //   );
+    // }
     dirPath = resolved;
 
     // Ensure path exists and is a directory

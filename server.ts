@@ -26,6 +26,7 @@ delete process.env.CLAUDECODE;
 
 import { createServer } from 'http';
 import { parse } from 'url';
+import httpProxy from 'http-proxy';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { homedir } from 'os';
@@ -58,10 +59,39 @@ const port = getPort();
 const app = next({ dev, hostname, port, turbopack: false });
 const handle = app.getRequestHandler();
 
+const proxy = httpProxy.createProxyServer({});
+proxy.on('error', (err, req, res) => {
+  log.error({ err, url: req.url }, 'Proxy error');
+  if (res && 'headersSent' in res && !res.headersSent) {
+    if ('writeHead' in res) {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
+    }
+  }
+});
+
 app.prepare().then(async () => {
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     const pathname = parsedUrl.pathname || '';
+
+    // Preview Proxy: /api/preview-proxy/:port/* -> http://localhost::port/*
+    if (pathname.startsWith('/api/preview-proxy/')) {
+      const parts = pathname.split('/');
+      const targetPort = parseInt(parts[3], 10);
+      
+      if (!isNaN(targetPort)) {
+        // Rewrite URL: remove /api/preview-proxy/:port
+        const proxyPath = '/' + parts.slice(4).join('/') + (parsedUrl.search || '');
+        req.url = proxyPath;
+        
+        proxy.web(req, res, {
+          target: `http://localhost:${targetPort}`,
+          changeOrigin: true,
+        });
+        return;
+      }
+    }
 
     // API authentication check - read from process.env directly for immediate effect
     const apiAccessKey = process.env.API_ACCESS_KEY;

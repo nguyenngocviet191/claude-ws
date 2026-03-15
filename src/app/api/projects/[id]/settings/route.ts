@@ -13,6 +13,8 @@ const log = createLogger('ProjectSettings');
 interface ProjectSettings {
   selectedComponents: string[];
   selectedAgentSets: string[];
+  devCommand?: string;
+  devPort?: number;
 }
 
 const SETTINGS_FILE_NAME = 'project-settings.json';
@@ -109,6 +111,8 @@ export async function POST(
     const newSettings: ProjectSettings = {
       selectedComponents: settings.selectedComponents || [],
       selectedAgentSets: settings.selectedAgentSets || [],
+      devCommand: settings.devCommand,
+      devPort: settings.devPort ? parseInt(String(settings.devPort)) : undefined,
     };
 
     // Write settings to file

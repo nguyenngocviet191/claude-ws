@@ -17,7 +17,12 @@ const log = createLogger('FileOperations');
 function validateRootPath(rootPath: string): string {
   const resolved = path.resolve(rootPath);
   const home = os.homedir();
-  if (!resolved.startsWith(home + path.sep) && resolved !== home) {
+  const workspace = process.cwd();
+
+  const isUnderHome = resolved.startsWith(home + path.sep) || resolved === home;
+  const isUnderWorkspace = resolved.startsWith(workspace + path.sep) || resolved === workspace;
+
+  if (!isUnderHome && !isUnderWorkspace) {
     throw new Error('Root path outside home directory');
   }
   return resolved;

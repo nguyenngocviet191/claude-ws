@@ -228,8 +228,12 @@ export function createFileTreeAndContentService() {
     getFileContentSync(basePath: string, filePath: string): FileContentResult {
       const fullPath = path.resolve(basePath, filePath);
       const normalizedBase = path.resolve(basePath);
-      const home = os.homedir();
-      if (!normalizedBase.startsWith(home + path.sep) && normalizedBase !== home) {
+      const home = process.env.ALLOWED_HOME_DIR ? path.resolve(process.env.ALLOWED_HOME_DIR) : os.homedir();
+      const workspace = process.cwd();
+      const isUnderHome = normalizedBase.startsWith(home + path.sep) || normalizedBase === home;
+      const isUnderWorkspace = normalizedBase.startsWith(workspace + path.sep) || normalizedBase === workspace;
+
+      if (!isUnderHome && !isUnderWorkspace) {
         throw new Error('Access denied: base path outside home directory');
       }
       if (!fullPath.startsWith(normalizedBase)) {
@@ -258,7 +262,11 @@ export function createFileTreeAndContentService() {
       const fullPath = path.resolve(basePath, filePath);
       const normalizedBase = path.resolve(basePath);
       const home = os.homedir();
-      if (!normalizedBase.startsWith(home + path.sep) && normalizedBase !== home) {
+      const workspace = process.cwd();
+      const isUnderHome = normalizedBase.startsWith(home + path.sep) || normalizedBase === home;
+      const isUnderWorkspace = normalizedBase.startsWith(workspace + path.sep) || normalizedBase === workspace;
+
+      if (!isUnderHome && !isUnderWorkspace) {
         throw new Error('Access denied: base path outside home directory');
       }
       if (!fullPath.startsWith(normalizedBase)) {

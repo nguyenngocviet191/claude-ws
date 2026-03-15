@@ -138,6 +138,7 @@
     "fastify": "^5.8.2",
     "fastify-plugin": "^5.1.0",
     "highlight.js": "^11.11.1",
+    "http-proxy": "^1.18.1",
     "js-yaml": "^4.1.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.562.0",
@@ -166,6 +167,7 @@
   },
   "packageManager": "pnpm@10.28.0+sha512.05df71d1421f21399e053fde567cea34d446fa02c76571441bfc1c7956e98e363088982d940465fd34480d4d90a0668bc12362f8aa88000a64e83d0b0e47be48",
   "devDependencies": {
+    "@types/http-proxy": "^1.17.17",
     "@types/js-yaml": "^4.0.9"
   }
 }
