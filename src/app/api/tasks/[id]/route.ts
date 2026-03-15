@@ -7,6 +7,7 @@ import { UPLOADS_DIR } from '@/lib/file-utils';
 import type { TaskStatus } from '@/types';
 import { createLogger } from '@/lib/logger';
 import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
+import { removeWorktreeForTask } from '@/lib/git-worktree-manager';
 
 const log = createLogger('TaskById');
 const taskService = createTaskService(db);
@@ -117,6 +118,26 @@ export async function DELETE(
         { error: 'Task not found' },
         { status: 404 }
       );
+    }
+
+    // Cleanup worktree if the task uses one
+    if (existing.useWorktree) {
+      try {
+        // Fetch project path from database
+        const project = await db.query.projects.findFirst({
+          where: eq(schema.projects.id, existing.projectId),
+        });
+
+        if (project) {
+          const worktreeResult = await removeWorktreeForTask(id, project.path);
+          if (!worktreeResult.success) {
+            log.warn({ error: worktreeResult.error, taskId: id }, 'Failed to cleanup worktree, continuing with task deletion');
+          }
+        }
+      } catch (error) {
+        // Log warning but continue with task deletion
+        log.warn({ error, taskId: id }, 'Error during worktree cleanup, continuing with task deletion');
+      }
     }
 
     // Query attempt IDs to clean up upload directories before DB cascade

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..', '..', '..');
-config({ path: path.join(projectRoot, '.env') });
+config({ path: path.join(projectRoot, '.env'), quiet: true });
 
 import { createApp } from '../src/app-factory';
 import { loadEnvConfig } from '../src/config/env-config';

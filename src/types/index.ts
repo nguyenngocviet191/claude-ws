@@ -51,6 +51,8 @@ export interface Task {
   position: number;
   chatInit: boolean;
   lastModel: string | null;  // Last used model for this task
+  useWorktree: boolean;  // Whether this task uses a git worktree for isolation
+  worktreePath: string | null;  // Path to the worktree if useWorktree is true
   createdAt: number;
   updatedAt: number;
 }

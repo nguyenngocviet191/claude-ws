@@ -30,6 +30,10 @@ export const tasks = sqliteTable(
     lastModel: text('last_model'),
     rewindSessionId: text('rewind_session_id'),
     rewindMessageUuid: text('rewind_message_uuid'),
+    useWorktree: integer('use_worktree', { mode: 'boolean' })
+      .notNull()
+      .default(false),
+    worktreePath: text('worktree_path'),
     createdAt: integer('created_at', { mode: 'number' })
       .notNull()
       .$defaultFn(() => Date.now()),

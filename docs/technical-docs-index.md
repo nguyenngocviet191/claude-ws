@@ -131,6 +131,20 @@ Zustand store architecture with all 24 stores organized by domain. Patterns, per
 
 ---
 
+### 7. Troubleshooting
+**File:** [`docs/troubleshooting/claude-cli.md`](./troubleshooting/claude-cli.md)
+
+Solutions for common issues related to Claude Code CLI detection and initialization.
+
+**Topics:**
+- Non-responsive chat (CLAUDECODE detection fix)
+- `spawn EINVAL` on Windows (PATH and shell fixes)
+- Reducing noise from Dotenv logs
+
+**Use When:** Fixing CLI connection issues or cleaning up terminal output.
+
+---
+
 ## Quick Reference Tables
 
 ### API Domains

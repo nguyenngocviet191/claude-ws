@@ -253,6 +253,11 @@ async function createAttempt(
     );
   }
 
+  // Use worktree path if the task uses a worktree, otherwise use project path
+  const agentProjectPath = task.worktreePath && task.useWorktree
+    ? task.worktreePath
+    : project.path;
+
   const newAttempt = {
     id: nanoid(),
     taskId: task.id,
@@ -284,7 +289,7 @@ async function createAttempt(
   // Note: agentManager.start() will add system guidelines internally
   agentManager.start({
     attemptId: newAttempt.id,
-    projectPath: project.path,
+    projectPath: agentProjectPath,
     prompt,
     model: model || undefined,  // Pass model to agent-manager
     sessionOptions: Object.keys(sessionOptions).length > 0 ? sessionOptions : undefined,

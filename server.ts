@@ -20,9 +20,9 @@ import { logCacheStats } from './src/lib/proxy-token-cache';
 // Enable SDK file checkpointing globally
 process.env.CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING = '1';
 
-// Unset CLAUDECODE to prevent nested session detection (SDK v0.2.42+)
+// NOTE: We keep CLAUDECODE for subprocess detection
 // claude-ws spawns Claude CLI from a server process that may itself run inside Claude Code
-delete process.env.CLAUDECODE;
+// delete process.env.CLAUDECODE;
 
 import { createServer } from 'http';
 import { parse } from 'url';

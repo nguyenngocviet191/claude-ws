@@ -59,3 +59,12 @@ claude-ws/
 ├── public/                     # Static assets (images, swagger docs)
 └── scripts/                    # Maintenance & Build scripts
 ```
+
+## 📚 Tài liệu điều tra liên quan
+
+- [Tổng quan dự án (Overview)](./overview.md)
+- [Kiến trúc hệ thống (Architecture)](./architecture.md)
+- [Cơ chế phát hiện Claude Code CLI (CLI Detection)](./cli-detection.md)
+- [Tính năng chính (Features)](./features.md)
+- [Hạn chế và Cải tiến (Limitations & Improvements)](./limitations_and_improvements.md)
+- [Ghi chú thu hoạch (Harvest)](./harvest.md)

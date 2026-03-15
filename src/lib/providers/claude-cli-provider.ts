@@ -133,18 +133,15 @@ export class ClaudeCLIProvider extends EventEmitter implements Provider {
     const child = spawn(claudePath, args, {
       cwd: normalizedProjectPath,
       stdio: ['pipe', 'pipe', 'pipe'], // stdin open for sending messages
+      shell: process.platform === 'win32', // Required for .cmd on Windows
       env: {
         ...process.env,
         FORCE_COLOR: '0',
         NO_COLOR: '1',
         TERM: 'dumb',
-        PATH: process.platform === 'win32'
-          ? (process.env.PATH || '').split(';').filter(p => {
-              const lp = p.toLowerCase().trim().replace(/\//g, '\\');
-              return !lp.startsWith('c:\\windows') &&
-                !lp.startsWith('c:\\program files (x86)\\windows kits');
-            }).join(';')
-          : `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin`,
+        ...(process.platform !== 'win32' ? {
+          PATH: `${process.env.PATH}:/opt/homebrew/bin:/usr/local/bin`
+        } : {}),
       },
     });
 

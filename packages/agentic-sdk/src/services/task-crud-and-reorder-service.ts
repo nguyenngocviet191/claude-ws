@@ -21,7 +21,7 @@ export function createTaskService(db: any) {
       return db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).get();
     },
 
-    async create(data: { projectId: string; title: string; description?: string; status?: string }) {
+    async create(data: { projectId: string; title: string; description?: string; status?: string; useWorktree?: boolean; worktreePath?: string }) {
       const status = data.status || 'todo';
       // Get highest position for this status in this project
       const existing = await db.select().from(schema.tasks)
@@ -39,6 +39,8 @@ export function createTaskService(db: any) {
         description: data.description || null,
         status: status as any,
         position,
+        useWorktree: data.useWorktree ?? false,
+        worktreePath: data.worktreePath || null,
         createdAt: now,
         updatedAt: now,
       };

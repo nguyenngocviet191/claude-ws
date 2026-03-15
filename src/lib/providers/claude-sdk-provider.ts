@@ -340,7 +340,7 @@ export class ClaudeSDKProvider extends EventEmitter implements Provider {
       const subprocessEnv = { ...process.env };
       delete subprocessEnv.ANTHROPIC_BASE_URL;
       delete subprocessEnv.ANTHROPIC_PROXIED_BASE_URL;
-      delete subprocessEnv.CLAUDECODE;
+      // delete subprocessEnv.CLAUDECODE;
       delete subprocessEnv.CLAUDE_CODE_ENTRYPOINT;
 
       log.info({

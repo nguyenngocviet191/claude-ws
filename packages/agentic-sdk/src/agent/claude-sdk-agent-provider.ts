@@ -165,7 +165,8 @@ export class AgentProvider extends EventEmitter {
         process.env.ANTHROPIC_AUTH_TOKEN = this.config.anthropicAuthToken;
         process.env.ANTHROPIC_API_KEY = this.config.anthropicAuthToken;
       }
-      delete process.env.CLAUDECODE;
+      // NOTE: We keep CLAUDECODE for subprocess detection
+      // delete process.env.CLAUDECODE;
       delete process.env.CLAUDE_CODE_ENTRYPOINT;
 
       const queryOptions = {

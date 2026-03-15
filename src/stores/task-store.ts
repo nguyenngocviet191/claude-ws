@@ -31,7 +31,7 @@ interface TaskStore {
 
   // API calls
   fetchTasks: (projectIds: string[]) => Promise<void>;
-  createTask: (projectId: string, title: string, description: string | null) => Promise<Task>;
+  createTask: (projectId: string, title: string, description: string | null, useWorktree?: boolean) => Promise<Task>;
   duplicateTask: (task: Task) => Promise<Task>;
   reorderTasks: (taskId: string, newStatus: TaskStatus, newPosition: number) => Promise<void>;
   updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
@@ -189,12 +189,12 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
   },
 
-  createTask: async (projectId: string, title: string, description: string | null) => {
+  createTask: async (projectId: string, title: string, description: string | null, useWorktree = false) => {
     try {
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, title, description }),
+        body: JSON.stringify({ projectId, title, description, useWorktree }),
       });
       if (!res.ok) throw new Error('Failed to create task');
       const task = await res.json();

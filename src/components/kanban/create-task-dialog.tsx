@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -53,6 +54,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
   const [title, setTitle] = useState('');
   const [chatPrompt, setChatPrompt] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [useWorktree, setUseWorktree] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,7 +138,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
 
       // Use title if provided, otherwise use message as title
       const taskTitle = title.trim() || chatPrompt.trim();
-      const task = await createTask(selectedProjectId, taskTitle, descriptionForTask);
+      const task = await createTask(selectedProjectId, taskTitle, descriptionForTask, useWorktree);
 
       // Move files from temp task to the real task
       if (tempTaskId && fileIds.length > 0) {
@@ -174,6 +176,7 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
         setTitle('');
         setChatPrompt('');
         setSelectedProjectId('');
+        setUseWorktree(false);
         setError(null);
         setTempTaskId('');
       }
@@ -259,6 +262,21 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
               onChange={(e) => setTitle(e.target.value)}
               disabled={isSubmitting}
             />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="use-worktree"
+              checked={useWorktree}
+              onCheckedChange={(checked) => setUseWorktree(checked === true)}
+              disabled={isSubmitting}
+            />
+            <Label
+              htmlFor="use-worktree"
+              className="text-sm font-normal cursor-pointer"
+            >
+              Use Git Worktree (isolated environment for this task)
+            </Label>
           </div>
 
           {error && (

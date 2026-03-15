@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, schema } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 import type { TaskStatus } from '@/types';
 import { createTaskService } from '@agentic-sdk/services/task-crud-and-reorder-service';
+import { createWorktreeForTask, removeWorktreeForTask } from '@/lib/git-worktree-manager';
 
 const taskService = createTaskService(db);
 
@@ -51,7 +53,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { projectId, title, description, status } = body;
+    const { projectId, title, description, status, useWorktree } = body;
 
     if (!projectId || !title) {
       return NextResponse.json(
@@ -64,7 +66,57 @@ export async function POST(request: NextRequest) {
     const validStatuses: TaskStatus[] = ['todo', 'in_progress', 'in_review', 'done', 'cancelled'];
     const taskStatus: TaskStatus = status && validStatuses.includes(status) ? status : 'todo';
 
-    const newTask = await taskService.create({ projectId, title, description, status: taskStatus });
+    // Create task first to get taskId
+    let newTask = await taskService.create({ projectId, title, description, status: taskStatus });
+
+    // Handle worktree creation if requested
+    if (useWorktree) {
+      try {
+        // Fetch project path from database
+        const project = await db.query.projects.findFirst({
+          where: eq(schema.projects.id, projectId),
+        });
+
+        if (!project) {
+          // Rollback: delete the task we just created
+          await taskService.remove(newTask.id);
+          return NextResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        // Create worktree for the task
+        const worktreeResult = await createWorktreeForTask({
+          taskId: newTask.id,
+          projectPath: project.path,
+        });
+
+        if (!worktreeResult.success) {
+          // Rollback: delete the task if worktree creation failed
+          await taskService.remove(newTask.id);
+          console.error('Failed to create worktree:', worktreeResult.error);
+          return NextResponse.json(
+            { error: worktreeResult.error || 'Failed to create worktree' },
+            { status: 500 }
+          );
+        }
+
+        // Update task with worktree path
+        newTask = await taskService.update(newTask.id, {
+          useWorktree: true,
+          worktreePath: worktreeResult.worktreePath,
+        });
+      } catch (error) {
+        // Rollback: delete the task if any error occurs during worktree creation
+        await taskService.remove(newTask.id);
+        console.error('Error during worktree creation:', error);
+        return NextResponse.json(
+          { error: 'Failed to create worktree' },
+          { status: 500 }
+        );
+      }
+    }
 
     return NextResponse.json(newTask, { status: 201 });
   } catch (error: any) {
