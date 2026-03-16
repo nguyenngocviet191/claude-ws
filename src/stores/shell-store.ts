@@ -47,6 +47,7 @@ interface ShellActions {
   getShellLogs: (shellId: string, lines?: number) => Promise<LogEntry[]>;
   addShellLog: (shellId: string, log: LogEntry) => void;
   clearShellLogs: (shellId: string) => void;
+  spawnShell: (options: { projectId: string; command: string; cwd: string; attemptId?: string }) => Promise<string | null>;
 }
 
 type ShellStore = ShellState & ShellActions;
@@ -252,5 +253,27 @@ export const useShellStore = create<ShellStore>((set, get) => ({
       newLogs.delete(shellId);
       return { shellLogs: newLogs };
     });
+  },
+
+  spawnShell: async (options) => {
+    try {
+      const res = await fetch('/api/shells', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        log.error({ err }, 'Failed to spawn shell');
+        return null;
+      }
+
+      const data = await res.json();
+      return data.shellId;
+    } catch (err) {
+      log.error({ err }, 'Spawn shell error');
+      return null;
+    }
   },
 }));

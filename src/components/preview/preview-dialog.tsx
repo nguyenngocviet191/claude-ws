@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Eye, ExternalLink, RefreshCw, Globe, Terminal as TerminalIcon } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Eye, ExternalLink, RefreshCw, Globe, Terminal as TerminalIcon, Play, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { useProjectStore } from '@/stores/project-store';
 import { useTunnelStore } from '@/stores/tunnel-store';
 import { useProjectSettingsStore } from '@/stores/project-settings-store';
 import { useShellStore } from '@/stores/shell-store';
+import { cn } from '@/lib/utils';
 
 interface PreviewDialogProps {
   open: boolean;
@@ -25,17 +26,19 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   const { projects } = useProjectStore();
   const { url: tunnelUrl, status: tunnelStatus } = useTunnelStore();
   const { settings, fetchProjectSettings } = useProjectSettingsStore();
-  const { shells } = useShellStore();
+  const { shells, subscribeToProject, spawnShell } = useShellStore();
   
   const project = projects.find(p => p.id === projectId);
   const projectSettings = settings[projectId];
   
-  const defaultPort = projectSettings?.devPort || 3000;
+  const defaultPort = projectSettings?.devPort || 3002;
   const localUrl = `http://localhost:${defaultPort}`;
   
   // URL priority: Tunnel > User custom (if we added it to state) > Default Local
   const [url, setUrl] = useState(tunnelUrl || localUrl);
   const [iframeKey, setIframeKey] = useState(0);
+  const [isStarting, setIsStarting] = useState(false);
+  const [hasAutoStarted, setHasAutoStarted] = useState(false);
 
   // Helper to get proxied URL for localhost to avoid port conflict/circular preview
   const getIframeSrc = (targetUrl: string) => {
@@ -55,8 +58,11 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   useEffect(() => {
     if (open && projectId) {
       fetchProjectSettings(projectId);
+      subscribeToProject(projectId);
+    } else if (!open) {
+      setHasAutoStarted(false);
     }
-  }, [open, projectId]);
+  }, [open, projectId, fetchProjectSettings, subscribeToProject]);
 
   useEffect(() => {
     if (tunnelUrl) {
@@ -79,6 +85,30 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
     s => s.projectId === projectId && s.isRunning
   );
 
+  const startDevServer = useCallback(async () => {
+    if (!project || !projectSettings?.devCommand) return;
+    
+    setIsStarting(true);
+    try {
+      await spawnShell({
+        projectId: project.id,
+        command: projectSettings.devCommand,
+        cwd: project.path,
+        attemptId: 'preview-autostart'
+      });
+    } finally {
+      setIsStarting(false);
+    }
+  }, [project, projectSettings, spawnShell]);
+
+  // Auto-start if command exists and no shells are running
+  useEffect(() => {
+    if (open && projectSettings?.devCommand && runningShells.length === 0 && !isStarting && !hasAutoStarted) {
+      setHasAutoStarted(true);
+      startDevServer();
+    }
+  }, [open, projectSettings, runningShells.length, isStarting, hasAutoStarted, startDevServer]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-[95vw] h-[92vh] flex flex-col p-0 overflow-hidden gap-0">
@@ -87,9 +117,16 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
             <div className="bg-primary/10 p-1.5 rounded-md">
               <Eye className="h-4 w-4 text-primary" />
             </div>
-            <DialogTitle className="text-base font-semibold truncate">
-              Preview: {project?.name}
-            </DialogTitle>
+            <div className="flex flex-col">
+              <DialogTitle className="text-base font-semibold truncate leading-none">
+                Preview: {project?.name}
+              </DialogTitle>
+              {projectSettings?.devCommand && (
+                <span className="text-[10px] text-muted-foreground mt-1 font-mono">
+                  {projectSettings.devCommand}
+                </span>
+              )}
+            </div>
             
             <div className="flex items-center gap-2 ml-4 flex-1">
               <div className="relative flex-1">
@@ -100,6 +137,24 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
                   className="h-8 pl-8 text-xs font-mono w-full"
                 />
               </div>
+              
+              {projectSettings?.devCommand && runningShells.length === 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 gap-1.5 text-xs border-primary/20 hover:border-primary/50"
+                  onClick={startDevServer}
+                  disabled={isStarting}
+                >
+                  {isStarting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                  )}
+                  {isStarting ? 'Starting...' : 'Start Dev Server'}
+                </Button>
+              )}
+
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refreshPreview}>
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
@@ -111,10 +166,36 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
         </DialogHeader>
 
         <div className="flex-1 bg-muted/30 relative">
+          {runningShells.length === 0 && !isStarting ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+              <div className="flex flex-col items-center gap-4 text-center p-8 max-w-md">
+                <div className="bg-muted p-4 rounded-full">
+                  <TerminalIcon className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-lg">Dev Server Not Running</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The preview requires a dev server running on port {defaultPort}. 
+                    {projectSettings?.devCommand ? ' Click the button to start it.' : ' Please start it manually in the terminal.'}
+                  </p>
+                </div>
+                {projectSettings?.devCommand && (
+                  <Button onClick={startDevServer} className="gap-2">
+                    <Play className="h-4 w-4 fill-current" />
+                    Start {projectSettings.devCommand}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : null}
+
           <iframe 
             key={iframeKey}
             src={getIframeSrc(url)}
-            className="w-full h-full border-none bg-white"
+            className={cn(
+              "w-full h-full border-none bg-white transition-opacity duration-300",
+              (runningShells.length === 0 && !isStarting) ? "opacity-30" : "opacity-100"
+            )}
             title="Project Preview"
           />
           
@@ -130,6 +211,12 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
               <div className="bg-blue-500 text-white text-[10px] px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
                 <TerminalIcon className="h-3 w-3" />
                 {runningShells.length} Shells Active
+              </div>
+            )}
+            {isStarting && (
+              <div className="bg-amber-500 text-white text-[10px] px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Starting Server...
               </div>
             )}
           </div>

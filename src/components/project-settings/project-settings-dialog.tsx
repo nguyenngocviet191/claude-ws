@@ -50,7 +50,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
   const [selectedComponents, setSelectedComponents] = useState<string[]>([]);
   const [selectedAgentSets, setSelectedAgentSets] = useState<string[]>([]);
   const [devCommand, setDevCommand] = useState<string>('');
-  const [devPort, setDevPort] = useState<string>('3000');
+  const [devPort, setDevPort] = useState<string>('3002');
   const [hasChanges, setHasChanges] = useState(false);
   const [installResult, setInstallResult] = useState<InstallResult | null>(null);
   const [actuallyInstalledIds, setActuallyInstalledIds] = useState<string[]>([]);
@@ -96,7 +96,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
       setSelectedComponents(s.selectedComponents || []);
       setSelectedAgentSets(s.selectedAgentSets || []);
       setDevCommand(s.devCommand || '');
-      setDevPort(String(s.devPort || '3000'));
+      setDevPort(String(s.devPort || '3002'));
       setHasChanges(false);
       loadedProjectIdRef.current = projectId;
     }
@@ -212,7 +212,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
                   <Label>Dev Port (Preview)</Label>
                   <Input 
                     type="number" 
-                    placeholder="3000" 
+                    placeholder="3002" 
                     value={devPort} 
                     onChange={(e) => {
                       setDevPort(e.target.value);

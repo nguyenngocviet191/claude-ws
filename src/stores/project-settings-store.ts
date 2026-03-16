@@ -67,6 +67,8 @@ export const useProjectSettingsStore = create<ProjectSettingsStore>((set, get) =
       const updatedSettings: ProjectSettings = {
         selectedComponents: newSettings.selectedComponents ?? currentSettings.selectedComponents,
         selectedAgentSets: newSettings.selectedAgentSets ?? currentSettings.selectedAgentSets,
+        devCommand: newSettings.devCommand !== undefined ? newSettings.devCommand : currentSettings.devCommand,
+        devPort: newSettings.devPort !== undefined ? newSettings.devPort : currentSettings.devPort,
       };
 
       const response = await fetch(`/api/projects/${projectId}/settings`, {

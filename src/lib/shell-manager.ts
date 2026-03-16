@@ -91,9 +91,9 @@ class ShellManager extends EventEmitter {
 
     log.debug({ shellId, cwd, command }, 'Spawning shell');
 
-    const child = spawn('bash', ['-c', command], {
+    const child = spawn(command, [], {
       cwd,
-      shell: false,
+      shell: true,
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -110,7 +110,7 @@ class ShellManager extends EventEmitter {
       projectId,
       attemptId,
       command,
-      args: ['-c', command],
+      args: [],
       cwd,
       process: child,
       pid: child.pid,

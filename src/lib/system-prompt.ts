@@ -6,6 +6,7 @@ export const ENGINEERING_SYSTEM_PROMPT = `
 ## BACKGROUND SERVERS - CRITICAL
 - Unless specified otherwise, create files/folders ONLY within the project's path and organize files/folders using the PARA method, also create docs, plans, reports, executions if needed
 - Respond in the same language as the user's prompt, except for CLAUDE.md requirements.
+- IMPORTANT: When starting or configuring a project's dev server (e.g., npm run dev, next dev, vite), ALWAYS use port 3002 to avoid conflicts with the claude-ws management interface running on port 3000.
 `.trim();
 
 /**
