@@ -88,8 +88,24 @@ proxy.on('proxyRes', (proxyRes, req, res) => {
     if (key.toLowerCase() === 'content-length' && shouldModify) return;
     // Skip transfer-encoding if we are buffering to avoid conflicts with res.end()
     if (key.toLowerCase() === 'transfer-encoding' && shouldModify) return;
+    
+    // Ensure no-cache for preview content to avoid stale project content
+    if (key.toLowerCase() === 'cache-control') return;
+    if (key.toLowerCase() === 'pragma') return;
+    if (key.toLowerCase() === 'expires') return;
+    if (key.toLowerCase() === 'etag') return;
+    if (key.toLowerCase() === 'last-modified') return;
+    
     res.setHeader(key, proxyRes.headers[key]!);
   });
+
+  // Inject no-cache headers
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  // Remove any chance of conditional request
+  res.removeHeader('ETag');
+  res.removeHeader('Last-Modified');
 
   if (shouldModify) {
     const chunks: Buffer[] = [];
@@ -862,20 +878,23 @@ app.prepare().then(async () => {
       }
 
       try {
-        // Resolve CWD: try project path if projectId given, fallback to user CWD
-        let cwd = userCwd;
-        if (data.projectId) {
+        // Resolve CWD: explicit data.cwd > project path (if projectId given) > fallback to user CWD
+        const d = data as any;
+        let cwd = d.cwd || userCwd;
+        if (!d.cwd && d.projectId) {
           const project = await db.query.projects.findFirst({
-            where: eq(schema.projects.id, data.projectId),
+            where: eq(schema.projects.id, d.projectId as string),
           });
           if (project) cwd = project.path;
         }
 
         const terminalId = terminalManager.create({
-          projectId: data.projectId || 'global',
+          projectId: d.projectId || 'global',
           cwd,
           cols: data.cols,
           rows: data.rows,
+          command: d.command,
+          env: d.env,
         });
 
         socket.join(`terminal:${terminalId}`);

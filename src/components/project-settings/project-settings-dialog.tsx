@@ -51,6 +51,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
   const [selectedAgentSets, setSelectedAgentSets] = useState<string[]>([]);
   const [devCommand, setDevCommand] = useState<string>('');
   const [devPort, setDevPort] = useState<string>('3002');
+  const [devCwd, setDevCwd] = useState<string>('');
   const [hasChanges, setHasChanges] = useState(false);
   const [installResult, setInstallResult] = useState<InstallResult | null>(null);
   const [actuallyInstalledIds, setActuallyInstalledIds] = useState<string[]>([]);
@@ -97,6 +98,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
       setSelectedAgentSets(s.selectedAgentSets || []);
       setDevCommand(s.devCommand || '');
       setDevPort(String(s.devPort || '3002'));
+      setDevCwd(s.devCwd || '');
       setHasChanges(false);
       loadedProjectIdRef.current = projectId;
     }
@@ -110,6 +112,7 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
         selectedAgentSets,
         devCommand: devCommand || undefined,
         devPort: devPort ? parseInt(devPort) : undefined,
+        devCwd: devCwd || undefined,
       });
 
       // Install components to project folder
@@ -199,14 +202,14 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
                 <div className="space-y-2">
                   <Label>Dev Command (Preview)</Label>
                   <Input 
-                    placeholder="npm run dev" 
+                    placeholder="npm run dev -- -p 3002" 
                     value={devCommand} 
                     onChange={(e) => {
                       setDevCommand(e.target.value);
                       setHasChanges(true);
                     }} 
                   />
-                  <p className="text-[10px] text-muted-foreground">Command to start dev server</p>
+                  <p className="text-[10px] text-muted-foreground">Command to start dev server. Must match the port below.</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Dev Port (Preview)</Label>
@@ -219,8 +222,27 @@ export function ProjectSettingsDialog({ open, onOpenChange, projectId }: Project
                       setHasChanges(true);
                     }} 
                   />
-                  <p className="text-[10px] text-muted-foreground">Port where dev server runs</p>
+                  <p className="text-[10px] text-muted-foreground">Port the backend proxy will target. Must match your server.</p>
                 </div>
+              </div>
+
+              {/* Port automation tip */}
+              <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-800">
+                <CheckCircle className="h-3 w-3" />
+                <span>Tip: The port <code>{devPort}</code> is automatically injected via the <code>PORT</code> environment variable. Most frameworks (Next.js, Vite) will use it automatically.</span>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t">
+                <Label>Dev Working Directory (Optional)</Label>
+                <Input 
+                  placeholder="src/frontend" 
+                  value={devCwd} 
+                  onChange={(e) => {
+                    setDevCwd(e.target.value);
+                    setHasChanges(true);
+                  }} 
+                />
+                <p className="text-[10px] text-muted-foreground">Subdirectory to run the dev command in (relative to project root)</p>
               </div>
 
               {/* Installation status */}

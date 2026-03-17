@@ -9,6 +9,7 @@ import { EventEmitter } from 'events';
 import { createLogger } from './logger';
 import { isPidAlive } from './shell-process-monitor';
 import type { ShellInstance } from './shell-manager';
+import { exec } from 'child_process';
 
 const log = createLogger('ShellCleanup');
 
@@ -30,22 +31,36 @@ export function stopShell(
     return false;
   }
 
-  // External processes (tracked via BGPID) aren't process group leaders
-  // Use direct PID kill for them, process group kill (-pid) for our spawned shells
+  const isWin = process.platform === 'win32';
   const isExternalProcess = !instance.process;
   const killTarget = isExternalProcess ? instance.pid : -instance.pid;
 
-  log.debug({ shellId, pid: instance.pid, isExternalProcess, signal }, 'Stopping shell');
+  log.debug({ shellId, pid: instance.pid, isExternalProcess, signal, platform: process.platform }, 'Stopping shell');
 
   try {
-    process.kill(killTarget, signal);
+    if (isWin && !isExternalProcess) {
+      // On Windows, use taskkill to ensure the process tree is killed (equivalent to -pid on POSIX)
+      exec(`taskkill /F /T /PID ${instance.pid}`, (err: any) => {
+        if (err) log.error({ shellId, err }, 'taskkill failed');
+      });
+    } else {
+      try {
+        process.kill(killTarget, signal);
+      } catch (err) {
+        log.error({ shellId, err }, 'process.kill failed');
+      }
+    }
 
-    // Force kill after 5 seconds if still running
+    // Force kill after 5 seconds if still running (non-Windows or fallback)
     setTimeout(() => {
       if (instance.exitCode === null && isPidAlive(instance.pid)) {
         log.debug({ shellId }, 'Force killing shell');
         try {
-          process.kill(killTarget, 'SIGKILL');
+          if (isWin && !isExternalProcess) {
+             exec(`taskkill /F /T /PID ${instance.pid}`);
+          } else {
+            process.kill(killTarget, 'SIGKILL');
+          }
         } catch {
           // Process might already be dead
         }

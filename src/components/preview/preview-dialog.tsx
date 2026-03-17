@@ -12,7 +12,11 @@ import { useProjectStore } from '@/stores/project-store';
 import { useTunnelStore } from '@/stores/tunnel-store';
 import { useProjectSettingsStore } from '@/stores/project-settings-store';
 import { useShellStore } from '@/stores/shell-store';
+import { useTerminalStore } from '@/stores/terminal-store';
 import { cn } from '@/lib/utils';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('PreviewDialog');
 
 interface PreviewDialogProps {
   open: boolean;
@@ -25,6 +29,13 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   const { url: tunnelUrl, status: tunnelStatus } = useTunnelStore();
   const { settings, fetchProjectSettings } = useProjectSettingsStore();
   const { shells, subscribeToProject, spawnShell, loading: shellsLoading } = useShellStore();
+  const { 
+    tabs: terminalTabs, 
+    createTerminalWithCommand, 
+    closeTerminal, 
+    openPanel, 
+    setActiveTab 
+  } = useTerminalStore();
   
   const project = projects.find(p => p.id === projectId);
   const projectSettings = settings[projectId];
@@ -42,22 +53,31 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   // Helper to get proxied URL for localhost to avoid port conflict/circular preview
   const getIframeSrc = (targetUrl: string) => {
     if (!targetUrl) return '';
-    if (targetUrl.startsWith('http://localhost:') || targetUrl.startsWith('http://127.0.0.1:')) {
-      try {
-        const urlObj = new URL(targetUrl);
+    try {
+      const urlObj = new URL(targetUrl);
+      
+      // Use iframeKey as a versioning parameter to force refresh
+      if (iframeKey > 0) {
+        urlObj.searchParams.set('v', iframeKey.toString());
+      }
+
+      if (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1') {
         const port = urlObj.port || '80';
         return `/api/preview-proxy/${port}${urlObj.pathname}${urlObj.search}`;
-      } catch {
-        return targetUrl;
       }
+      return urlObj.toString();
+    } catch {
+      return targetUrl;
     }
-    return targetUrl;
   };
 
   useEffect(() => {
     if (open && projectId) {
       fetchProjectSettings(projectId);
       subscribeToProject(projectId);
+      // Reset auto-start flag and refresh iframe when switching projects
+      setHasAutoStarted(false);
+      setIframeKey(k => k + 1);
     } else if (!open) {
       setHasAutoStarted(false);
     }
@@ -79,34 +99,83 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
     window.open(url, '_blank');
   };
 
-  // Check if there are any running shells for this project
-  const runningShells = Array.from(shells.values()).filter(
-    s => s.projectId === projectId && s.isRunning
-  );
+  // Check if there are any running shells or preview terminals for this project
+  const isServerRunning = isStarting || terminalTabs.some(t => t.projectId === projectId && t.title.startsWith('Preview: ') && t.isConnected);
 
   const startDevServer = useCallback(async () => {
     if (!project || !projectSettings?.devCommand) return;
     
     setIsStarting(true);
     try {
-      await spawnShell({
-        projectId: project.id,
-        command: projectSettings.devCommand,
-        cwd: project.path,
-        attemptId: 'preview-autostart'
-      });
+      // 1. Find and stop any other projects' preview shells that might be using the same port (3002)
+      // Transitioning from background shells to interactive terminals
+      const otherPreviewShells = Array.from(shells.values()).filter(
+        s => s.projectId !== projectId && s.isRunning && s.attemptId === 'preview-autostart'
+      );
+
+      if (otherPreviewShells.length > 0) {
+        log.info({ count: otherPreviewShells.length }, 'Stopping other projects\' preview shells');
+        for (const shell of otherPreviewShells) {
+          await useShellStore.getState().stopShell(shell.shellId);
+        }
+      }
+
+      // 2. Stop preview terminals of OTHER projects to free up the port
+      const previewPrefix = 'Preview: ';
+      const otherPreviewTabs = terminalTabs.filter(t => t.title.startsWith(previewPrefix) && t.projectId !== projectId);
+      for (const tab of otherPreviewTabs) {
+        log.info({ tabId: tab.id, projectId: tab.projectId }, 'Closing other project preview terminal');
+        closeTerminal(tab.id);
+      }
+
+      // 3. Close existing preview terminal of THIS project if it exists (to restart)
+      const myPreviewTab = terminalTabs.find(t => t.title.startsWith(previewPrefix) && t.projectId === projectId);
+      if (myPreviewTab) {
+        closeTerminal(myPreviewTab.id);
+      }
+
+      // 4. Start new dev server in a terminal tab
+      const title = `Preview: ${project.name}`;
+      
+      // Resolve terminal CWD: join project root with devCwd if provided
+      let terminalCwd = project.path;
+      if (projectSettings.devCwd) {
+        // Simple join for now, assuming relative path
+        const separator = project.path.includes('\\') ? '\\' : '/';
+        const cleanDevCwd = projectSettings.devCwd.replace(/^[\\\/]/, '').replace(/[\\\/]$/, '');
+        terminalCwd = `${project.path}${separator}${cleanDevCwd}`;
+      }
+      
+      // Environment variables for the dev server (e.g. PORT for Next.js/Vite)
+      const env = {
+        PORT: String(projectSettings.devPort || 3002)
+      };
+      
+      const terminalId = await createTerminalWithCommand(projectId, projectSettings.devCommand, title, terminalCwd, env);
+      
+      if (terminalId) {
+        setHasAutoStarted(true);
+        setIframeKey(k => k + 1);
+        openPanel(); // Ensure terminal panel is visible
+        setActiveTab(terminalId); // Focus the preview terminal
+      }
     } finally {
       setIsStarting(false);
     }
-  }, [project, projectSettings, spawnShell]);
+  }, [project, projectSettings, shells, projectId, terminalTabs, closeTerminal, createTerminalWithCommand, openPanel, setActiveTab]);
 
-  // Auto-start if command exists and no shells are running, only after shells are loaded
+  // Auto-start if command exists and no preview terminal is running
   useEffect(() => {
-    if (open && projectSettings?.devCommand && !shellsLoading && runningShells.length === 0 && !isStarting && !hasAutoStarted) {
-      setHasAutoStarted(true);
-      startDevServer();
+    if (open && projectSettings?.devCommand && !isStarting && !hasAutoStarted) {
+      const isActuallyRunning = terminalTabs.some(t => t.projectId === projectId && t.title.startsWith('Preview: ') && t.isConnected);
+      if (!isActuallyRunning) {
+        setHasAutoStarted(true);
+        startDevServer();
+      } else {
+        setHasAutoStarted(true);
+      }
     }
-  }, [open, projectSettings, shellsLoading, runningShells.length, isStarting, hasAutoStarted, startDevServer]);
+  }, [open, projectSettings, isStarting, hasAutoStarted, startDevServer, terminalTabs, projectId]);
 
   if (!open) return null;
 
@@ -190,7 +259,7 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
 
 
         <div className="flex-1 bg-background relative overflow-auto">
-          {(!shellsLoading && runningShells.length === 0 && !isStarting) ? (
+          {(!isStarting && !terminalTabs.some(t => t.projectId === projectId && t.title.startsWith('Preview: ') && t.isConnected)) ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
               <div className="flex flex-col items-center gap-4 text-center p-8 max-w-md">
                 <div className="bg-muted p-4 rounded-full">
@@ -224,7 +293,7 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
               src={getIframeSrc(url)}
               className={cn(
                 "w-full h-full border-none transition-opacity duration-300",
-                ((runningShells.length === 0 && !isStarting) && !shellsLoading) ? "opacity-30" : "opacity-100"
+                !isServerRunning ? "opacity-30" : "opacity-100"
               )}
               title="Project Preview"
               width="100%"
@@ -240,10 +309,10 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
                 Live Tunnel
               </div>
             )}
-            {runningShells.length > 0 && (
+            {isServerRunning && !isStarting && (
               <div className="bg-blue-500 text-white text-[10px] px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
                 <TerminalIcon className="h-3 w-3" />
-                {runningShells.length} Shells Active
+                Preview Server Active
               </div>
             )}
             {isStarting && (

@@ -37,6 +37,8 @@ export interface TerminalCreateOptions {
   cols?: number;
   rows?: number;
   shell?: string;
+  command?: string;
+  env?: Record<string, string>;
 }
 
 class TerminalManager extends EventEmitter {
@@ -61,7 +63,12 @@ class TerminalManager extends EventEmitter {
     // Build clean env for PTY — remove vars that break nvm/shell init
     // npm_config_prefix conflicts with nvm — causes "not compatible" error and node disappears from PATH
     const { npm_config_prefix: _, ...cleanProcessEnv } = process.env;
-    const ptyEnv = { ...cleanProcessEnv, ...shellConfig.env, LANG: process.env.LANG || 'en_US.UTF-8' };
+    const ptyEnv = { 
+      ...cleanProcessEnv, 
+      ...shellConfig.env, 
+      ...(options.env || {}),
+      LANG: process.env.LANG || 'en_US.UTF-8' 
+    };
 
     const ptyProcess = pty.spawn(shellConfig.file, shellConfig.args, {
       name: 'xterm-256color',
@@ -71,6 +78,15 @@ class TerminalManager extends EventEmitter {
       env: ptyEnv as Record<string, string>,
       ...(process.platform === 'win32' ? { useConpty: true } : {}),
     });
+
+    // If an initial command is provided, write it to the terminal after a short delay
+    // to ensure the shell is ready to receive input.
+    if (options.command) {
+      setTimeout(() => {
+        // Use \r (carriage return) as it's the standard "Enter" for PTY on Windows
+        ptyProcess.write(options.command + '\r');
+      }, 1000);
+    }
 
     const session: TerminalSession = {
       id: terminalId,

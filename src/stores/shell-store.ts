@@ -59,10 +59,19 @@ export const useShellStore = create<ShellStore>((set, get) => ({
   subscribedProjectId: null,
   loading: false,
 
-  setShells: (projectId, shells) => {
-    const map = new Map<string, ShellInfo>();
-    shells.forEach((s) => map.set(s.shellId, s));
-    set({ shells: map, loading: false });
+  setShells: (projectId, projectShells) => {
+    set((state) => {
+      const newMap = new Map(state.shells);
+      // Remove old shells for this specific project first to avoid duplicates/stale data
+      for (const [id, shell] of newMap.entries()) {
+        if (shell.projectId === projectId) {
+          newMap.delete(id);
+        }
+      }
+      // Add new shells for this project
+      projectShells.forEach((s) => newMap.set(s.shellId, s));
+      return { shells: newMap, loading: false };
+    });
   },
 
   addShell: (shell) => {
@@ -192,7 +201,7 @@ export const useShellStore = create<ShellStore>((set, get) => ({
     const { socket, subscribedProjectId } = get();
     if (socket && subscribedProjectId) {
       socket.emit('shell:unsubscribe', { projectId: subscribedProjectId });
-      set({ subscribedProjectId: null, shells: new Map() });
+      set({ subscribedProjectId: null });
     }
   },
 

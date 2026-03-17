@@ -15,6 +15,7 @@ interface ProjectSettings {
   selectedAgentSets: string[];
   devCommand?: string;
   devPort?: number;
+  devCwd?: string;
 }
 
 const SETTINGS_FILE_NAME = 'project-settings.json';
@@ -113,6 +114,7 @@ export async function POST(
       selectedAgentSets: settings.selectedAgentSets || [],
       devCommand: settings.devCommand,
       devPort: settings.devPort ? parseInt(String(settings.devPort)) : undefined,
+      devCwd: settings.devCwd,
     };
 
     // Write settings to file

@@ -49,6 +49,7 @@ interface TerminalActions {
   closePanel: () => void;
   setPanelHeight: (height: number) => void;
   createTerminal: (projectId?: string) => Promise<string | null>;
+  createTerminalWithCommand: (projectId: string, command: string, title?: string, cwd?: string, env?: Record<string, string>) => Promise<string | null>;
   closeTerminal: (terminalId: string) => void;
   setActiveTab: (terminalId: string) => void;
   sendInput: (terminalId: string, data: string) => void;
@@ -172,6 +173,10 @@ export const useTerminalStore = create<TerminalStore>()(
       },
 
       createTerminal: async (projectId) => {
+        return get().createTerminalWithCommand(projectId || 'global', '');
+      },
+
+      createTerminalWithCommand: async (projectId, command, title, cwd, env) => {
         // Prevent concurrent creation (race condition on mobile rapid taps)
         if (get()._isCreating) {
           log.info('Terminal creation already in-flight, skipping');
@@ -184,7 +189,7 @@ export const useTerminalStore = create<TerminalStore>()(
         await waitForConnection(socket);
 
         return new Promise((resolve) => {
-          log.info({ projectId }, 'Creating terminal');
+          log.info({ projectId, command }, 'Creating terminal with command');
 
           // Timeout guard — if ack never arrives, reset _isCreating
           const timeout = setTimeout(() => {
@@ -195,7 +200,12 @@ export const useTerminalStore = create<TerminalStore>()(
 
           socket.emit(
             'terminal:create',
-            { projectId: projectId || undefined },
+            { 
+              projectId: projectId || undefined,
+              command: command || undefined,
+              cwd: cwd || undefined,
+              env: env || undefined
+            },
             (result: { success: boolean; terminalId?: string; error?: string }) => {
               clearTimeout(timeout);
               log.info({ result }, 'terminal:create ack received');
@@ -205,7 +215,7 @@ export const useTerminalStore = create<TerminalStore>()(
                 const tab: TerminalTab = {
                   id: result.terminalId,
                   projectId: projectId || 'global',
-                  title: `Terminal ${tabNumber}`,
+                  title: title || `Terminal ${tabNumber}`,
                   createdAt: Date.now(),
                   isConnected: true,
                 };

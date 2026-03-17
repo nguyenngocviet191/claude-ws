@@ -30,6 +30,7 @@ export interface ProjectSettings {
   selectedAgentSets: string[]; // Agent set IDs
   devCommand?: string;
   devPort?: number;
+  devCwd?: string;
 }
 
 // Project type
