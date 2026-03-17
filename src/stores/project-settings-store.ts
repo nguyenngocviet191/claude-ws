@@ -24,7 +24,7 @@ export const useProjectSettingsStore = create<ProjectSettingsStore>((set, get) =
 
       const response = await fetch(`/api/projects/${projectId}/settings`, {
         headers: {
-          'x-api-key': localStorage.getItem('apiKey') || '',
+          'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
         },
       });
 
@@ -75,7 +75,7 @@ export const useProjectSettingsStore = create<ProjectSettingsStore>((set, get) =
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': localStorage.getItem('apiKey') || '',
+          'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
         },
         body: JSON.stringify({ settings: updatedSettings }),
       });
@@ -104,7 +104,7 @@ export const useProjectSettingsStore = create<ProjectSettingsStore>((set, get) =
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': localStorage.getItem('apiKey') || '',
+          'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
         },
       });
 

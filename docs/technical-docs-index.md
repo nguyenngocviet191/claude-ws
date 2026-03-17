@@ -145,6 +145,20 @@ Solutions for common issues related to Claude Code CLI detection and initializat
 
 ---
 
+### 8. Preview Dev Server
+**File:** [`docs/features/preview-dev-server.md`](./features/preview-dev-server.md)
+
+Detailed documentation of the integrated dev server preview feature. Covers the proxy architecture, HTML manipulation, and integrated UI design.
+
+**Topics:**
+- Proxy architecture and Port handling
+- Base Tag Injection for relative paths
+- Referer Hijacking for framework assets
+- Integrated Workspace UI (Portals & Full-bleed)
+- Device simulation and Auto-start mechanism
+
+**Use When:** Debugging preview issues, understanding proxy routing, extending UI features
+
 ## Quick Reference Tables
 
 ### API Domains

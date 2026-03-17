@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Eye, ExternalLink, RefreshCw, Globe, Terminal as TerminalIcon, Play, Loader2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Eye, ExternalLink, RefreshCw, Globe, Terminal as TerminalIcon, Play, Loader2, Monitor, Smartphone, Tablet, X } from 'lucide-react';
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +37,7 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   const [iframeKey, setIframeKey] = useState(0);
   const [isStarting, setIsStarting] = useState(false);
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
   // Helper to get proxied URL for localhost to avoid port conflict/circular preview
   const getIframeSrc = (targetUrl: string) => {
@@ -109,64 +108,89 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
     }
   }, [open, projectSettings, shellsLoading, runningShells.length, isStarting, hasAutoStarted, startDevServer]);
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[95vw] h-[92vh] flex flex-col p-0 overflow-hidden gap-0">
-        <DialogHeader className="p-4 border-b flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="bg-primary/10 p-1.5 rounded-md">
-              <Eye className="h-4 w-4 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <DialogTitle className="text-base font-semibold truncate leading-none">
-                Preview: {project?.name}
-              </DialogTitle>
-              {projectSettings?.devCommand && (
-                <span className="text-[10px] text-muted-foreground mt-1 font-mono">
-                  {projectSettings.devCommand}
-                </span>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 ml-4 flex-1">
-              <div className="relative flex-1">
-                <Globe className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input 
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="h-8 pl-8 text-xs font-mono w-full"
-                />
-              </div>
-              
-              {projectSettings?.devCommand && runningShells.length === 0 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 gap-1.5 text-xs border-primary/20 hover:border-primary/50"
-                  onClick={startDevServer}
-                  disabled={isStarting}
-                >
-                  {isStarting ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                  )}
-                  {isStarting ? 'Starting...' : 'Start Dev Server'}
-                </Button>
-              )}
+  if (!open) return null;
 
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={refreshPreview}>
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openExternal}>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+  const content = (
+    <div className="fixed inset-0 z-[1000] bg-background flex flex-col animate-in fade-in duration-200">
+      <div className="p-2 px-4 border-b flex flex-row items-center justify-between space-y-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm z-10">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="bg-primary/10 p-1.5 rounded-md cursor-pointer hover:bg-primary/20" onClick={() => onOpenChange(false)}>
+            <Eye className="h-4 w-4 text-primary" />
           </div>
-        </DialogHeader>
+          <div className="flex flex-col">
+            <h2 className="text-base font-semibold truncate leading-none">
+              Preview: {project?.name}
+            </h2>
+            {projectSettings?.devCommand && (
+              <span className="text-[10px] text-muted-foreground mt-1 font-mono">
+                {projectSettings.devCommand}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2 ml-4 flex-1">
+            <div className="relative flex-1">
+              <Globe className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input 
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="h-8 pl-8 text-xs font-mono w-full"
+              />
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIframeKey(k => k + 1)}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open(getIframeSrc(url), '_blank')}>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
 
-        <div className="flex-1 bg-muted/30 relative">
-          {runningShells.length === 0 && !isStarting ? (
+        <div className="flex items-center gap-3 ml-4">
+          <div className="flex items-center border rounded-md px-1 h-8 bg-muted/20">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-6 w-6 rounded-sm", layoutMode === 'mobile' && "bg-background shadow-sm")} 
+              onClick={() => setLayoutMode('mobile')}
+              title="Mobile"
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-6 w-6 rounded-sm", layoutMode === 'tablet' && "bg-background shadow-sm")} 
+              onClick={() => setLayoutMode('tablet')}
+              title="Tablet"
+            >
+              <Tablet className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={cn("h-6 w-6 rounded-sm", layoutMode === 'desktop' && "bg-background shadow-sm")} 
+              onClick={() => setLayoutMode('desktop')}
+              title="Desktop"
+            >
+              <Monitor className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+
+        <div className="flex-1 bg-background relative overflow-auto">
+          {(!shellsLoading && runningShells.length === 0 && !isStarting) ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
               <div className="flex flex-col items-center gap-4 text-center p-8 max-w-md">
                 <div className="bg-muted p-4 rounded-full">
@@ -189,15 +213,24 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
             </div>
           ) : null}
 
-          <iframe 
-            key={iframeKey}
-            src={getIframeSrc(url)}
-            className={cn(
-              "w-full h-full border-none bg-white transition-opacity duration-300",
-              (runningShells.length === 0 && !isStarting) ? "opacity-30" : "opacity-100"
-            )}
-            title="Project Preview"
-          />
+          <div className={cn(
+            "mx-auto transition-all duration-300 ease-in-out bg-white overflow-hidden shadow-sm relative border-x",
+            layoutMode === 'mobile' && "w-[375px] h-[667px] mt-8 border rounded-lg",
+            layoutMode === 'tablet' && "w-[768px] h-[1024px] mt-4 border rounded-lg",
+            layoutMode === 'desktop' && "w-full h-full border-none"
+          )}>
+            <iframe 
+              key={iframeKey}
+              src={getIframeSrc(url)}
+              className={cn(
+                "w-full h-full border-none transition-opacity duration-300",
+                ((runningShells.length === 0 && !isStarting) && !shellsLoading) ? "opacity-30" : "opacity-100"
+              )}
+              title="Project Preview"
+              width="100%"
+              height="100%"
+            />
+          </div>
           
           {/* Status bar / Info overlay if needed */}
           <div className="absolute bottom-4 right-4 flex flex-col gap-2">
@@ -221,7 +254,9 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+    </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
 }

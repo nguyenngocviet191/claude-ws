@@ -175,7 +175,11 @@ export const useShellStore = create<ShellStore>((set, get) => ({
     set({ subscribedProjectId: projectId, loading: true });
 
     // Fetch initial shells from API
-    fetch(`/api/shells?projectId=${encodeURIComponent(projectId)}`)
+    fetch(`/api/shells?projectId=${encodeURIComponent(projectId)}`, {
+      headers: {
+        'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
+      },
+    })
       .then((res) => res.json())
       .then((shells: ShellInfo[]) => get().setShells(projectId, shells))
       .catch((err) => {
@@ -259,7 +263,10 @@ export const useShellStore = create<ShellStore>((set, get) => ({
     try {
       const res = await fetch('/api/shells', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
+        },
         body: JSON.stringify(options),
       });
 
@@ -271,6 +278,21 @@ export const useShellStore = create<ShellStore>((set, get) => ({
       }
 
       const data = await res.json();
+      
+      // Update local state immediately to prevent race conditions in UI
+      const newShell: ShellInfo = {
+        shellId: data.shellId,
+        projectId: options.projectId,
+        attemptId: options.attemptId || 'manual',
+        command: options.command,
+        pid: data.pid,
+        startedAt: Date.now(),
+        isRunning: true,
+        exitCode: null,
+      };
+      
+      get().addShell(newShell);
+      
       return data.shellId;
     } catch (err) {
       log.error({ err }, 'Spawn shell error');

@@ -33,7 +33,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
       const response = await fetch('/api/models', {
         headers: {
-          'x-api-key': localStorage.getItem('apiKey') || '',
+          'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
         },
       });
 
@@ -68,7 +68,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': localStorage.getItem('apiKey') || '',
+            'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
           },
           body: JSON.stringify({ lastModel: modelId }),
         });
@@ -98,7 +98,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': localStorage.getItem('apiKey') || '',
+            'x-api-key': localStorage.getItem('claude-kanban:api-key') || '',
           },
           body: JSON.stringify({ model: modelId }),
         });

@@ -70,10 +70,86 @@ proxy.on('error', (err, req, res) => {
   }
 });
 
+proxy.on('proxyRes', (proxyRes, req, res) => {
+  const targetPort = (req as any)._targetPort;
+  if (!targetPort) return;
+
+  const contentType = proxyRes.headers['content-type'] || '';
+  const isHtml = contentType.includes('text/html');
+  
+  // Forward status code and headers
+  res.statusCode = proxyRes.statusCode || 200;
+  
+  // Determine if we need to modify the body
+  const shouldModify = isHtml && res.statusCode === 200;
+
+  Object.keys(proxyRes.headers).forEach(key => {
+    // Skip content-length for modified HTML as we'll recalculate it
+    if (key.toLowerCase() === 'content-length' && shouldModify) return;
+    // Skip transfer-encoding if we are buffering to avoid conflicts with res.end()
+    if (key.toLowerCase() === 'transfer-encoding' && shouldModify) return;
+    res.setHeader(key, proxyRes.headers[key]!);
+  });
+
+  if (shouldModify) {
+    const chunks: Buffer[] = [];
+    proxyRes.on('data', chunk => {
+      chunks.push(chunk);
+    });
+    proxyRes.on('end', () => {
+      let body = Buffer.concat(chunks).toString('utf8');
+      
+      // Inject <base> tag after <head>
+      const baseTag = `\n    <base href="/api/preview-proxy/${targetPort}/">`;
+      if (body.includes('<head>')) {
+        body = body.replace('<head>', `<head>${baseTag}`);
+      } else if (body.includes('<html>')) {
+        body = body.replace('<html>', `<html>\n<head>${baseTag}</head>`);
+      } else {
+        // Fallback for partial HTML / missing tags
+        body = `<head>${baseTag}</head>` + body;
+      }
+      
+      const modifiedBuffer = Buffer.from(body, 'utf8');
+      res.setHeader('Content-Length', modifiedBuffer.length);
+      res.end(modifiedBuffer);
+    });
+  } else {
+    proxyRes.pipe(res);
+  }
+});
+
 app.prepare().then(async () => {
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     const pathname = parsedUrl.pathname || '';
+
+    // Handle relative assets missing the proxy prefix using Referer
+    const referer = req.headers.referer;
+    if (referer && !pathname.startsWith('/api/')) {
+      try {
+        const refUrl = parse(referer);
+        if (refUrl.pathname?.startsWith('/api/preview-proxy/')) {
+          const refParts = refUrl.pathname.split('/');
+          const refPort = parseInt(refParts[3], 10);
+          if (!isNaN(refPort)) {
+            log.debug({ refPort, pathname }, '[PreviewProxy] Proxying asset via referer');
+            (req as any)._targetPort = refPort;
+            (req as any)._isProxied = true;
+            req.headers['accept-encoding'] = 'identity';
+
+            proxy.web(req, res, { 
+              target: `http://127.0.0.1:${refPort}`, 
+              changeOrigin: true,
+              selfHandleResponse: true // Some assets might be HTML (e.g. error pages)
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        // Ignore parsing errors for referer
+      }
+    }
 
     // Preview Proxy: /api/preview-proxy/:port/* -> http://localhost::port/*
     if (pathname.startsWith('/api/preview-proxy/')) {
@@ -85,9 +161,18 @@ app.prepare().then(async () => {
         const proxyPath = '/' + parts.slice(4).join('/') + (parsedUrl.search || '');
         req.url = proxyPath;
         
+        // Store target port for the proxyRes handler to inject <base> tag
+        (req as any)._targetPort = targetPort;
+        (req as any)._isProxied = true;
+
+        // Force 'identity' encoding to prevent the dev server from gzipping the response.
+        // Gzipped responses cannot be easily modified with string replacement.
+        req.headers['accept-encoding'] = 'identity';
+
         proxy.web(req, res, {
-          target: `http://localhost:${targetPort}`,
+          target: `http://127.0.0.1:${targetPort}`,
           changeOrigin: true,
+          selfHandleResponse: true // We'll handle the response to inject <base>
         });
         return;
       }
@@ -100,11 +185,12 @@ app.prepare().then(async () => {
     const isProxyEndpoint = pathname.startsWith('/api/proxy/anthropic');
     const isTunnelStatusEndpoint = pathname === '/api/tunnel/status';
     const isApiAccessKeyEndpoint = pathname === '/api/settings/api-access-key';
+    const isPreviewProxyEndpoint = pathname.startsWith('/api/preview-proxy/');
     // Uploads GET is public (for serving files), POST/DELETE require API key
     const isUploadsGetEndpoint = pathname.startsWith('/api/uploads/') && req.method === 'GET';
 
-    // Skip auth for verify, tunnel status, api-access-key, and uploads GET endpoints
-    if (isApiRoute && !isVerifyEndpoint && !isProxyEndpoint && !isTunnelStatusEndpoint && !isApiAccessKeyEndpoint && !isUploadsGetEndpoint && apiAccessKey && apiAccessKey.length > 0) {
+    // Skip auth for verify, tunnel status, api-access-key, preview-proxy, and uploads GET endpoints
+    if (isApiRoute && !isVerifyEndpoint && !isProxyEndpoint && !isTunnelStatusEndpoint && !isApiAccessKeyEndpoint && !isPreviewProxyEndpoint && !isUploadsGetEndpoint && apiAccessKey && apiAccessKey.length > 0) {
       const providedKey = req.headers['x-api-key'];
 
       if (!providedKey || typeof providedKey !== 'string' || !safeCompare(providedKey, apiAccessKey)) {

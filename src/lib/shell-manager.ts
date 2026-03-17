@@ -268,7 +268,7 @@ class ShellManager extends EventEmitter {
     cwd: string;
     pid: number | null;
   }): boolean {
-    return restoreFromDb(shellRecord, this.shells);
+    return restoreFromDb(shellRecord, this.shells, this);
   }
 
   /** Cleanup all shells on shutdown */

@@ -110,6 +110,7 @@ export function restoreFromDb(
     pid: number | null;
   },
   shells: Map<string, ShellInstance>,
+  emitter: EventEmitter,
 ): boolean {
   if (!shellRecord.pid) {
     log.debug({ shellId: shellRecord.id }, 'Cannot restore shell: no PID');
@@ -143,5 +144,6 @@ export function restoreFromDb(
   };
 
   shells.set(shellRecord.id, instance);
+  monitorExternalProcess(shellRecord.id, shellRecord.pid, shells, emitter);
   return true;
 }
