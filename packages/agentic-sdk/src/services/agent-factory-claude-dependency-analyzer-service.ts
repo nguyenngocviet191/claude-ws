@@ -8,8 +8,8 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { dependencyExtractor } from './agent-factory-dependency-extractor-service.ts';
-import type { LibraryDep, PluginDep } from './agent-factory-dependency-extractor-parsers-service.ts';
+import { dependencyExtractor } from './agent-factory-dependency-extractor-service';
+import type { LibraryDep, PluginDep } from './agent-factory-dependency-extractor-parsers-service';
 
 export type { LibraryDep, PluginDep };
 

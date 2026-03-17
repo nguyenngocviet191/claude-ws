@@ -15,7 +15,7 @@ import {
   processDirectory,
   previewDirectory,
   previewDirectoryContents,
-} from './agent-factory-upload-filesystem-helpers-service.ts';
+} from './agent-factory-upload-filesystem-helpers-service';
 
 export type { ExtractedItem };
 

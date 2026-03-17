@@ -51,6 +51,7 @@ export interface SDKResultMessage {
   cost_usd?: number;
   is_error?: boolean;
   duration_ms?: number;
+  duration_api_ms?: number;
   num_turns?: number;
 }
 

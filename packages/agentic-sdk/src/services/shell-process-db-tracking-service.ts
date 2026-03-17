@@ -2,8 +2,8 @@
  * Shell process DB tracking service - list, create, update status of shell process records (no actual spawning)
  */
 import { eq, desc } from 'drizzle-orm';
-import * as schema from '../db/database-schema.ts';
-import { generateId } from '../lib/nanoid-id-generator.ts';
+import * as schema from '../db/database-schema';
+import { generateId } from '../lib/nanoid-id-generator';
 
 export function createShellService(db: any) {
   return {

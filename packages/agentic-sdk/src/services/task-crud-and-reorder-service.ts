@@ -2,8 +2,8 @@
  * Task CRUD service - list, get, create, update, delete, reorder tasks and fetch attempt/conversation data
  */
 import { eq, and, desc, inArray } from 'drizzle-orm';
-import * as schema from '../db/database-schema.ts';
-import { generateId } from '../lib/nanoid-id-generator.ts';
+import * as schema from '../db/database-schema';
+import { generateId } from '../lib/nanoid-id-generator';
 
 export function createTaskService(db: any) {
   return {
@@ -80,7 +80,7 @@ export function createTaskService(db: any) {
         conditions.push(eq(schema.tasks.projectId, opts.projectId));
       }
       if (opts?.statuses?.length) {
-        conditions.push(inArray(schema.tasks.status, opts.statuses));
+        conditions.push(inArray(schema.tasks.status, opts.statuses as any));
       }
       const whereClause = conditions.length > 0
         ? conditions.length === 1 ? conditions[0] : and(...conditions)

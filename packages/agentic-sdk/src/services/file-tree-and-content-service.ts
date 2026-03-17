@@ -49,7 +49,7 @@ interface GitStatusResult {
 // ---------------------------------------------------------------------------
 
 // Language mapping by extension (must match CodeMirror language keys)
-const LANGUAGE_MAP: Record<string, string | null> = {
+export const LANGUAGE_MAP: Record<string, string | null> = {
   '.js': 'javascript', '.jsx': 'jsx', '.ts': 'typescript', '.tsx': 'tsx',
   '.mjs': 'javascript', '.cjs': 'javascript',
   '.html': 'html', '.htm': 'html', '.css': 'css', '.scss': 'css',
@@ -64,7 +64,7 @@ const LANGUAGE_MAP: Record<string, string | null> = {
   '.txt': null, '.log': null,
 };
 
-const BINARY_EXTENSIONS = [
+export const BINARY_EXTENSIONS = [
   '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.svg',
   '.pdf', '.doc', '.docx', '.xls', '.xlsx',
   '.zip', '.tar', '.gz', '.rar',
@@ -73,17 +73,17 @@ const BINARY_EXTENSIONS = [
   '.mp3', '.mp4', '.wav', '.avi', '.mov',
 ];
 
-const EXCLUDED_DIRS = ['node_modules', '.git', '.next', 'dist', 'build', '.turbo'];
-const EXCLUDED_FILES = ['.DS_Store', 'Thumbs.db'];
+export const EXCLUDED_DIRS = ['node_modules', '.git', '.next', 'dist', 'build', '.turbo'];
+export const EXCLUDED_FILES = ['.DS_Store', 'Thumbs.db'];
 
 // Max file size: 10MB
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // Canonical MIME type mapping (self-contained, no @/ imports)
 // ---------------------------------------------------------------------------
 
-const CONTENT_TYPE_MAP: Record<string, string> = {
+export const CONTENT_TYPE_MAP: Record<string, string> = {
   json: 'application/json', xml: 'application/xml', yaml: 'text/yaml',
   yml: 'text/yaml', csv: 'text/csv', txt: 'text/plain',
   html: 'text/html', htm: 'text/html', css: 'text/css',
@@ -109,7 +109,7 @@ const CONTENT_TYPE_MAP: Record<string, string> = {
   mov: 'video/quicktime', mp3: 'audio/mpeg', wav: 'audio/wav',
 };
 
-function getContentTypeForExtension(ext: string): string {
+export function getContentTypeForExtension(ext: string): string {
   const key = (ext.startsWith('.') ? ext.slice(1) : ext).toLowerCase();
   return CONTENT_TYPE_MAP[key] || 'application/octet-stream';
 }
@@ -118,7 +118,7 @@ function getContentTypeForExtension(ext: string): string {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function detectLanguage(filePath: string): string | null {
+export function detectLanguage(filePath: string): string | null {
   const fileName = path.basename(filePath);
   const specialFiles: Record<string, string | null> = {
     'Dockerfile': null, 'Makefile': null,

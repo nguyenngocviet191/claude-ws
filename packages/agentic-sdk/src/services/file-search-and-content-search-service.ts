@@ -11,7 +11,7 @@ import {
   collectAllFiles,
   escapeRegex,
   searchDirContent,
-} from './file-search-filesystem-scan-helpers.ts';
+} from './file-search-filesystem-scan-helpers';
 
 export function createFileSearchService() {
   return {

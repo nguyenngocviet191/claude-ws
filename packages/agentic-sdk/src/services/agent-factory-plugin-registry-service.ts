@@ -5,8 +5,8 @@
 import { eq, and } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
-import * as schema from '../db/database-schema.ts';
-import { generateId } from '../lib/nanoid-id-generator.ts';
+import * as schema from '../db/database-schema';
+import { generateId } from '../lib/nanoid-id-generator';
 
 export function createAgentFactoryService(db: any) {
   return {

@@ -2,8 +2,8 @@
  * Project CRUD service - list, get, create, update, delete projects in SQLite via Drizzle ORM
  */
 import { eq, desc } from 'drizzle-orm';
-import * as schema from '../db/database-schema.ts';
-import { generateId } from '../lib/nanoid-id-generator.ts';
+import * as schema from '../db/database-schema';
+import { generateId } from '../lib/nanoid-id-generator';
 
 export function createProjectService(db: any) {
   return {

@@ -5,8 +5,8 @@
  */
 import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
-import { safeCompare } from '../lib/timing-safe-compare.ts';
-import type { EnvConfig } from '../config/env-config.ts';
+import { safeCompare } from '../lib/timing-safe-compare';
+import type { EnvConfig } from '../config/env-config';
 
 interface AuthPluginOptions {
   envConfig: EnvConfig;

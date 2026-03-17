@@ -16,6 +16,27 @@ import {
 
 const agentFactoryService = createAgentFactoryService(db);
 
+// Create a wrapper that matches the expected interface for importFromSession
+const registryService = {
+  upsertPlugin: async (name: string, type: string, data: Record<string, unknown>) => {
+    // Try to update first, if not found then create
+    const plugins = await agentFactoryService.listPlugins({ type });
+    const existing = (plugins as any[]).find((p: any) => p.name === name);
+    if (existing) {
+      return await agentFactoryService.updatePlugin(existing.id, data as any);
+    } else {
+      return await agentFactoryService.createPlugin({
+        type: type as 'skill' | 'command' | 'agent' | 'agent_set',
+        name,
+        description: data.description as string,
+        sourcePath: data.sourcePath as string,
+        storageType: data.storageType as 'local' | 'imported',
+        metadata: data.metadata ? JSON.stringify(data.metadata) : undefined,
+      });
+    }
+  },
+};
+
 // POST /api/agent-factory/upload - Upload and extract component archive
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +63,7 @@ export async function POST(request: NextRequest) {
         await mkdir(join(targetDir, 'commands'), { recursive: true });
         await mkdir(join(targetDir, 'agents'), { recursive: true });
 
-        const items = await importFromSession(session, targetDir, globalImport, agentFactoryService, cleanupDirectory);
+        const items = await importFromSession(session, targetDir, globalImport, registryService, cleanupDirectory);
 
         await cleanupDirectory(session.extractDir);
         uploadSessions.delete(sessionId);

@@ -150,13 +150,15 @@ interface LayoutModeButtonsProps {
 }
 
 function LayoutModeButtons({ layoutMode, onLayoutModeChange }: LayoutModeButtonsProps) {
+  const modes: Array<{ mode: 'mobile' | 'tablet' | 'desktop'; icon: any; title: string }> = [
+    { mode: 'mobile', icon: Smartphone, title: 'Mobile' },
+    { mode: 'tablet', icon: Tablet, title: 'Tablet' },
+    { mode: 'desktop', icon: Monitor, title: 'Desktop' }
+  ];
+
   return (
     <div className="flex items-center border rounded-md px-1 h-8 bg-muted/20">
-      {[
-        { mode: 'mobile', icon: Smartphone, title: 'Mobile' },
-        { mode: 'tablet', icon: Tablet, title: 'Tablet' },
-        { mode: 'desktop', icon: Monitor, title: 'Desktop' }
-      ].map(({ mode, icon: Icon, title }) => (
+      {modes.map(({ mode, icon: Icon, title }) => (
         <Button
           key={mode}
           variant="ghost"
@@ -362,7 +364,8 @@ function useDevServer({ projectId, project, projectSettings, terminalTabs, onSta
   }, [terminalTabs, projectId, closeTerminal]);
 
   const getTerminalCwd = useCallback(() => {
-    if (!projectSettings?.devCwd) return project?.path;
+    if (!project) return undefined;
+    if (!projectSettings?.devCwd) return project.path;
 
     const separator = project.path.includes('\\') ? '\\' : '/';
     const cleanDevCwd = projectSettings.devCwd.replace(/^[\\\/]/, '').replace(/[\\\/]$/, '');
@@ -427,7 +430,7 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   const { isReady, getIframeSrc } = useServerPolling(open, isServerRunning, url, onServerReady);
 
   const { isStarting, startDevServer, isPreviewRunning, hasAutoStarted, setHasAutoStarted } =
-    useDevServer({ projectId, project, projectSettings, terminalTabs, onStarted: () => setIframeKey(k => k + 1) });
+    useDevServer({ projectId, project: project || null, projectSettings, terminalTabs, onStarted: () => setIframeKey(k => k + 1) });
 
   useEffect(() => {
     if (open && projectId) {

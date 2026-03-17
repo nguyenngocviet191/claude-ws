@@ -19,18 +19,9 @@ export async function GET(request: NextRequest) {
 
     const plugins = await agentFactoryService.listPlugins({
       type: type && ['skill', 'command', 'agent', 'agent_set'].includes(type) ? type : undefined,
-      orderByDesc: true,
     });
 
-    // Filter out imported plugins whose source no longer exists on disk
-    const validPlugins = (plugins as any[]).filter((plugin: any) => {
-      if (plugin.storageType === 'imported') {
-        return agentFactoryService.pluginSourceExists(plugin);
-      }
-      return true;
-    });
-
-    return NextResponse.json({ plugins: validPlugins });
+    return NextResponse.json({ plugins });
   } catch (error) {
     log.error({ error }, 'Error fetching plugins');
     return NextResponse.json({ error: 'Failed to fetch plugins' }, { status: 500 });
@@ -56,11 +47,6 @@ export async function POST(request: NextRequest) {
 
     if (pluginExists(pluginType, name)) {
       return NextResponse.json({ error: `Plugin file already exists at ${getPluginPath(pluginType, name)}` }, { status: 409 });
-    }
-
-    const existing = await agentFactoryService.findPlugin(name, pluginType);
-    if (existing) {
-      return NextResponse.json({ error: 'Plugin with this name already exists in database' }, { status: 409 });
     }
 
     let actualPath: string;

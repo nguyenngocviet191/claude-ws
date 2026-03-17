@@ -13,7 +13,7 @@ import {
   validatePathWithinRoot,
   isCompressedFile,
   extractArchive,
-} from './file-operations-path-security-and-compression-helpers.ts';
+} from './file-operations-path-security-and-compression-helpers';
 
 export function createFileOperationsService() {
   return {

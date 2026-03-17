@@ -6,22 +6,23 @@ import type { FastifyPluginAsync } from 'fastify';
 import fp from 'fastify-plugin';
 
 const errorHandlerPlugin: FastifyPluginAsync = async (app) => {
-  app.setErrorHandler((error, request, reply) => {
-    const statusCode = error.statusCode ?? 500;
+  app.setErrorHandler((error: unknown, request, reply) => {
+    const err = error as Error & { statusCode?: number; validation?: unknown[] };
+    const statusCode = err.statusCode ?? 500;
 
     // Log at appropriate level
     if (statusCode >= 500) {
-      request.log.error({ err: error, url: request.url }, error.message);
+      request.log.error({ err, url: request.url }, err.message);
     } else {
-      request.log.warn({ err: error, url: request.url }, error.message);
+      request.log.warn({ err, url: request.url }, err.message);
     }
 
     // Fastify validation errors
-    if (error.validation) {
-      return reply.code(400).send({ error: 'Validation error', details: error.validation });
+    if (err.validation) {
+      return reply.code(400).send({ error: 'Validation error', details: err.validation });
     }
 
-    return reply.code(statusCode).send({ error: error.message || 'Internal server error' });
+    return reply.code(statusCode).send({ error: err.message || 'Internal server error' });
   });
 
   // 404 handler for unmatched routes

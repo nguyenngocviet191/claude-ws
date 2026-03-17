@@ -5,7 +5,7 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import fs from 'fs';
 import path from 'path';
-import * as schema from './database-schema.ts';
+import * as schema from './database-schema';
 
 export function createDbConnection(dataDir: string) {
   // Ensure data directory exists
