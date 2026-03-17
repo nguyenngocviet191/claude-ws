@@ -133,6 +133,31 @@ app.prepare().then(async () => {
   }
 
   log.info(`[Server] Restored ${shellManager.runningCount} running shells`);
+  
+  // Forward shell events to Socket.io and update DB
+  shellManager.on('started', ({ shellId, projectId, pid }) => {
+    io.to(`shell:project:${projectId}`).emit('shell:started', { shellId, projectId, pid });
+  });
+
+  shellManager.on('output', ({ shellId, projectId, type, content }) => {
+    io.to(`shell:project:${projectId}`).emit('shell:output', { shellId, projectId, type, content });
+  });
+
+  shellManager.on('exit', async ({ shellId, projectId, code }) => {
+    log.info({ shellId, projectId, code }, '[Server] Shell exited');
+    
+    // Update database status
+    const status = code === 0 ? 'stopped' : 'crashed';
+    await db.update(schema.shells)
+      .set({ 
+        status, 
+        exitCode: code,
+        stoppedAt: Date.now() 
+      })
+      .where(eq(schema.shells.id, shellId));
+
+    io.to(`shell:project:${projectId}`).emit('shell:exit', { shellId, projectId, code });
+  });
 
   // Initialize Socket.io
   const io = new SocketIOServer(httpServer, {

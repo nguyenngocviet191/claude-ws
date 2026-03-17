@@ -264,8 +264,9 @@ export const useShellStore = create<ShellStore>((set, get) => ({
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        log.error({ err }, 'Failed to spawn shell');
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.error || res.statusText;
+        log.error({ status: res.status, error: errorMessage }, 'Failed to spawn shell');
         return null;
       }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, schema } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 import { createShellService } from '@agentic-sdk/services/shell-process-db-tracking-service';
 import { shellManager } from '@/lib/shell-manager';
 import { verifyApiKey, unauthorizedResponse } from '@/lib/api-auth';
@@ -74,13 +75,31 @@ export async function POST(request: NextRequest) {
 
     const instance = shellManager.getShell(shellId);
     if (!instance) {
-      return NextResponse.json({ error: 'Failed to spawn shell' }, { status: 500 });
+      console.error(`[Shell-API] Failed to get shell instance after spawn for ID: ${shellId}`);
+      return NextResponse.json({ error: 'Failed to spawn shell: Instance not found' }, { status: 500 });
     }
 
-    // 2. Create DB record for tracking
+    // 2. Validate attemptId before saving to DB (avoid FK constraint violation)
+    let validAttemptId: string | undefined = undefined;
+    if (attemptId && attemptId !== 'manual' && attemptId !== 'preview-autostart') {
+      try {
+        const attempt = await db.query.attempts.findFirst({
+          where: eq(schema.attempts.id, attemptId)
+        });
+        if (attempt) {
+          validAttemptId = attemptId;
+        } else {
+          console.warn(`[Shell-API] attemptId "${attemptId}" not found in DB, using NULL instead to avoid constraint violation`);
+        }
+      } catch (dbErr) {
+        console.error(`[Shell-API] Error checking attemptId "${attemptId}":`, dbErr);
+      }
+    }
+
+    // 3. Create DB record for tracking
     await shellService.create({
       projectId,
-      attemptId: attemptId || undefined,
+      attemptId: validAttemptId,
       command,
       cwd,
       pid: instance.pid

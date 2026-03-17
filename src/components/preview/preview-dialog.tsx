@@ -26,7 +26,7 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   const { projects } = useProjectStore();
   const { url: tunnelUrl, status: tunnelStatus } = useTunnelStore();
   const { settings, fetchProjectSettings } = useProjectSettingsStore();
-  const { shells, subscribeToProject, spawnShell } = useShellStore();
+  const { shells, subscribeToProject, spawnShell, loading: shellsLoading } = useShellStore();
   
   const project = projects.find(p => p.id === projectId);
   const projectSettings = settings[projectId];
@@ -101,13 +101,13 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
     }
   }, [project, projectSettings, spawnShell]);
 
-  // Auto-start if command exists and no shells are running
+  // Auto-start if command exists and no shells are running, only after shells are loaded
   useEffect(() => {
-    if (open && projectSettings?.devCommand && runningShells.length === 0 && !isStarting && !hasAutoStarted) {
+    if (open && projectSettings?.devCommand && !shellsLoading && runningShells.length === 0 && !isStarting && !hasAutoStarted) {
       setHasAutoStarted(true);
       startDevServer();
     }
-  }, [open, projectSettings, runningShells.length, isStarting, hasAutoStarted, startDevServer]);
+  }, [open, projectSettings, shellsLoading, runningShells.length, isStarting, hasAutoStarted, startDevServer]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
