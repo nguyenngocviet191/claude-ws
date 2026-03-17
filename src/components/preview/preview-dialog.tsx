@@ -49,6 +49,8 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
   const [isStarting, setIsStarting] = useState(false);
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
   const [layoutMode, setLayoutMode] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
+  const [isReady, setIsReady] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Helper to get proxied URL for localhost to avoid port conflict/circular preview
   const getIframeSrc = (targetUrl: string) => {
@@ -101,6 +103,64 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
 
   // Check if there are any running shells or preview terminals for this project
   const isServerRunning = isStarting || terminalTabs.some(t => t.projectId === projectId && t.title.startsWith('Preview: ') && t.isConnected);
+
+  // Polling logic to check if server is ready
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+    
+    const checkServerStatus = async () => {
+      if (!open || !isServerRunning) return;
+      
+      try {
+        const proxiedUrl = getIframeSrc(url);
+        // We use a small timeout for the check
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        const response = await fetch(proxiedUrl, { 
+          method: 'HEAD', 
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // server.ts returns 502 if target is down. 
+        // Any other response (200, 404, etc.) means the server is UP.
+        if (response.status !== 502) {
+          setIsReady(true);
+          setIsPolling(false);
+          // Force iframe refresh once ready
+          setIframeKey(k => k + 1);
+        }
+      } catch (err) {
+        // Fetch error usually means proxy is down or request was aborted
+        log.debug({ err }, 'Polling check failed');
+      }
+    };
+
+    if (open && isServerRunning && !isReady) {
+      setIsPolling(true);
+      // Initial check
+      checkServerStatus();
+      // Start polling
+      pollInterval = setInterval(checkServerStatus, 2000);
+    } else {
+      setIsPolling(false);
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [open, isServerRunning, isReady, url, iframeKey]);
+
+  // Reset isReady when server stops or project changes
+  useEffect(() => {
+    if (!open || !isServerRunning) {
+      setIsReady(false);
+    }
+  }, [open, isServerRunning]);
+
 
   const startDevServer = useCallback(async () => {
     if (!project || !projectSettings?.devCommand) return;
@@ -288,12 +348,60 @@ export function PreviewDialog({ open, onOpenChange, projectId }: PreviewDialogPr
             layoutMode === 'tablet' && "w-[768px] h-[1024px] mt-4 border rounded-lg",
             layoutMode === 'desktop' && "w-full h-full border-none"
           )}>
+            {isServerRunning && !isReady && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md transition-all duration-500 animate-in fade-in">
+                <div className="relative flex flex-col items-center gap-8 p-12 rounded-3xl border border-white/20 shadow-2xl overflow-hidden glassmorphism">
+                  {/* Animated Background Aura */}
+                  <div className="absolute -inset-10 bg-gradient-to-tr from-primary/20 via-transparent to-primary/10 blur-3xl animate-pulse" />
+                  
+                  {/* Decorative Elements */}
+                  <div className="absolute top-0 left-0 w-24 h-24 bg-primary/5 rounded-full -translate-x-12 -translate-y-12 blur-2xl" />
+                  <div className="absolute bottom-0 right-0 w-32 h-32 bg-primary/10 rounded-full translate-x-16 translate-y-16 blur-2xl" />
+
+                  <div className="relative">
+                    <div className="absolute -inset-4 bg-primary/20 rounded-full blur-xl animate-pulse" />
+                    <div className="relative bg-background border border-primary/20 p-6 rounded-2xl shadow-inner">
+                      <Loader2 className="h-10 w-10 text-primary animate-spin" strokeWidth={1.5} />
+                    </div>
+                  </div>
+
+                  <div className="relative space-y-3 text-center max-w-[280px]">
+                    <h3 className="text-xl font-bold tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      Compiling your vision...
+                    </h3>
+                    <p className="text-sm text-muted-foreground/80 leading-relaxed">
+                      The dev server is warming up. We'll show you the magic as soon as it's ready.
+                    </p>
+                  </div>
+
+                  <div className="relative flex items-center gap-4 py-2 px-4 bg-muted/30 rounded-full border border-white/10">
+                    <div className="flex gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
+                    </div>
+                    <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+                      Auto-refresh enabled
+                    </span>
+                  </div>
+                </div>
+                
+                <style jsx>{`
+                  .glassmorphism {
+                    background: rgba(var(--background-start-rgb), 0.4);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                  }
+                `}</style>
+              </div>
+            )}
             <iframe 
               key={iframeKey}
               src={getIframeSrc(url)}
               className={cn(
-                "w-full h-full border-none transition-opacity duration-300",
-                !isServerRunning ? "opacity-30" : "opacity-100"
+                "w-full h-full border-none transition-opacity duration-700 ease-in-out",
+                (!isServerRunning || !isReady) ? "opacity-0 scale-95" : "opacity-100 scale-100"
               )}
               title="Project Preview"
               width="100%"
