@@ -12,7 +12,7 @@ import { useShellStore } from '@/stores/shell-store';
 import { useTerminalStore } from '@/stores/terminal-store';
 import { cn } from '@/lib/utils';
 import { createLogger } from '@/lib/logger';
-
+import { getFolderName } from '@/lib/utils';
 const log = createLogger('PreviewDialog');
 const PREVIEW_PREFIX = 'Preview: ';
 const DEFAULT_DEV_PORT = 3002;
@@ -101,35 +101,51 @@ interface PreviewHeaderProps {
 
 function PreviewHeader({ project, url, onUrlChange, onRefresh, onOpenExternal, layoutMode, setLayoutMode, onClose }: PreviewHeaderProps) {
   return (
-    <div className="p-2 px-4 border-b flex flex-row items-center justify-between space-y-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm z-10">
-      <div className="flex items-center gap-3 flex-1">
-        <div className="bg-primary/10 p-1.5 rounded-md cursor-pointer hover:bg-primary/20" onClick={onClose}>
+    <div className="p-2 px-3 border-b flex flex-row items-center justify-between bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm z-10 min-w-0 gap-2">
+      {/* Left: Logo + Project Name */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* <div className="bg-primary/10 p-1.5 rounded-md cursor-pointer hover:bg-primary/20" onClick={onClose}>
           <Eye className="h-4 w-4 text-primary" />
-        </div>
-        <div className="flex flex-col">
-          <h2 className="text-base font-semibold truncate leading-none">Preview: {project?.name}</h2>
+        </div> */}
+        <h2 className="text-base font-semibold truncate leading-none">{getFolderName(project?.name ?? '')}</h2>
+        {/* <div className="hidden sm:flex flex-col">
+          
           {project?.settings?.devCommand && (
             <span className="text-[10px] text-muted-foreground mt-1 font-mono">{project.settings.devCommand}</span>
           )}
-        </div>
-        <div className="flex items-center gap-2 ml-4 flex-1">
-          <div className="relative flex-1">
-            <Globe className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={url}
-              onChange={(e) => onUrlChange(e.target.value)}
-              className="h-8 pl-8 text-xs font-mono w-full"
-            />
-          </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRefresh}>
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onOpenExternal}>
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+        </div> */}
       </div>
-      <div className="flex items-center gap-3 ml-4">
+
+      {/* Center: URL bar */}
+      <div className="hidden sm:flex items-center gap-2 flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0">
+          <Globe className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={url}
+            onChange={(e) => onUrlChange(e.target.value)}
+            className="h-8 pl-8 text-xs font-mono w-full"
+          />
+        </div>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onRefresh}>
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onOpenExternal}>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Mobile: Refresh + External icons */}
+      <div className="flex sm:hidden items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRefresh}>
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onOpenExternal}>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      </div> 
+
+      {/* Right: Device toggles + Close */}
+      <div className="flex items-center gap-2 shrink-0">
         <LayoutModeButtons layoutMode={layoutMode} onLayoutModeChange={setLayoutMode} />
         <Button
           variant="ghost"

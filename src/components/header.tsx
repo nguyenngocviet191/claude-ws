@@ -153,12 +153,13 @@ export function Header({ onCreateTask, onAddProject, searchQuery: externalSearch
           {/* Desktop: Project selector */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <ProjectSelector onAddProject={onAddProject} />
-            <PreviewButton />
+           
             <span className="text-xs text-muted-foreground mr-1">
               ({tasks.length} tasks)
             </span>
           </div>
-
+          {/* Preview */}
+          <PreviewButton />
           {/* Questions panel toggle - visible on all viewports */}
           <TooltipProvider>
             <Tooltip>
@@ -260,6 +261,10 @@ export function Header({ onCreateTask, onAddProject, searchQuery: externalSearch
                 <Terminal className="h-4 w-4 mr-2" />
                 Terminal
               </DropdownMenuItem>
+               {/* <DropdownMenuItem >
+                <PreviewButton className="mr-2"/>
+                Preview
+              </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
 

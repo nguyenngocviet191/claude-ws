@@ -12,7 +12,7 @@ import {
 import { PreviewDialog } from '@/components/preview/preview-dialog';
 import { useProjectStore } from '@/stores/project-store';
 
-export function PreviewButton() {
+export function PreviewButton({className}: {className?: string}) {
   const [open, setOpen] = useState(false);
   const { activeProjectId, selectedProjectIds } = useProjectStore();
   
