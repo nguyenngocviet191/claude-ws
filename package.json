@@ -68,7 +68,10 @@
     "db:generate": "drizzle-kit generate",
     "db:fix": "tsx scripts/db-fix-columns.ts",
     "agentic-sdk:dev": "tsx watch packages/agentic-sdk/bin/server-entrypoint.ts",
-    "agentic-sdk:start": "cross-env NODE_ENV=production tsx packages/agentic-sdk/bin/server-entrypoint.ts"
+    "agentic-sdk:start": "cross-env NODE_ENV=production tsx packages/agentic-sdk/bin/server-entrypoint.ts",
+    "test:cli": "jest --config bin/jest.config.js",
+    "test:cli:watch": "jest --config bin/jest.config.js --watch",
+    "test:cli:coverage": "jest --config bin/jest.config.js --coverage"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.42",
@@ -168,6 +171,8 @@
   "packageManager": "pnpm@10.28.0+sha512.05df71d1421f21399e053fde567cea34d446fa02c76571441bfc1c7956e98e363088982d940465fd34480d4d90a0668bc12362f8aa88000a64e83d0b0e47be48",
   "devDependencies": {
     "@types/http-proxy": "^1.17.17",
-    "@types/js-yaml": "^4.0.9"
+    "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "jest": "^30.3.0"
   }
 }

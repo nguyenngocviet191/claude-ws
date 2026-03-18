@@ -17,7 +17,19 @@ const os = require('os');
 // ── Subcommand detection ──────────────────────────────────────────────
 // If the first positional arg is a known subcommand, delegate and exit.
 // Otherwise, fall through to the existing foreground startup logic.
-const SUBCOMMANDS = ['start', 'stop', 'status', 'logs', 'open'];
+const SUBCOMMANDS = [
+  'start',
+  'stop',
+  'status',
+  'logs',
+  'open',
+  'create',
+  'projects',
+  'add-task',
+  'tasks',
+  'run-task',
+  'git',
+];
 const _firstArg = process.argv[2];
 if (SUBCOMMANDS.includes(_firstArg)) {
   require(`./lib/commands/${_firstArg}`).run(process.argv.slice(3));
@@ -72,22 +84,37 @@ Claude Workspace - Visual workspace for Claude Code
 
 Usage:
   claude-ws [options]          Start server in foreground (blocks terminal)
-  claude-ws <command> [flags]  Daemon management
+  claude-ws <command> [flags]  Daemon and project management
 
 Commands:
-  start    Start as background daemon
-           --port, -p <port>   Server port (default: 8556)
-           --host <host>       Bind host (default: localhost)
-           --data-dir <dir>    Data directory
-           --log-dir <dir>     Log directory
-           --no-open           Don't open browser after start
-  stop     Stop the running daemon
-  status   Show daemon PID, URL, and health
-  logs     Tail daemon log files
-           -f, --follow        Follow log output
-           -n, --lines <N>     Number of lines (default: 50)
-           -e, --error         Show error log instead
-  open     Open browser to running instance
+  Daemon Management:
+    start    Start as background daemon
+             --port, -p <port>   Server port (default: 8556)
+             --host <host>       Bind host (default: localhost)
+             --data-dir <dir>    Data directory
+             --log-dir <dir>     Log directory
+             --no-open           Don't open browser after start
+    stop     Stop the running daemon
+    status   Show daemon PID, URL, and health
+    logs     Tail daemon log files
+             -f, --follow        Follow log output
+             -n, --lines <N>     Number of lines (default: 50)
+             -e, --error         Show error log instead
+
+  Project Management:
+    create <name> [path]    Register a new project in the workspace
+    projects                List all registered projects
+    open [path-or-id]       Open browser to running instance or specific project
+
+  Task Management:
+    add-task <title> [desc]  Add a new task to the current project
+    tasks [status]           List tasks for the current project
+    run-task <task-id> [prompt]  Start an agent attempt for a task
+
+  Git Checkpoints:
+    git snapshot     Create a git checkpoint commit for current project
+    git rewind <id>  Reset to a specific checkpoint state
+    git list         Show history of checkpoints created by claude-ws
 
 Options:
   -v, --version    Show version number
@@ -99,12 +126,20 @@ Environment:
   Config:  ~/.claude-ws/config.json (port, host, dataDir, logDir)
 
 Examples:
-  claude-ws                     Start server in foreground
-  claude-ws start               Start as daemon
-  claude-ws start --port 3000   Start daemon on port 3000
-  claude-ws status              Check if daemon is running
-  claude-ws logs -f             Follow daemon logs
-  claude-ws stop                Stop the daemon
+  claude-ws                        Start server in foreground
+  claude-ws start                  Start as daemon
+  claude-ws start --port 3000      Start daemon on port 3000
+  claude-ws status                 Check if daemon is running
+  claude-ws logs -f                Follow daemon logs
+  claude-ws stop                   Stop the daemon
+  claude-ws create my-project      Register current directory as project
+  claude-ws create my-app ./src    Register ./src as project
+  claude-ws projects               List all projects
+  claude-ws open my-project        Open project in browser
+  claude-ws add-task "Fix bug"     Add new task to current project
+  claude-ws tasks                  List all tasks
+  claude-ws run-task task-123      Run a task
+  claude-ws git list               Show checkpoint history
 
 For more info: https://github.com/Claude-Workspace/claude-ws
   `);
