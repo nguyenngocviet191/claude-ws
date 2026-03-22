@@ -1,43 +1,90 @@
-/**
- * `claude-ws projects` — List all registered projects.
- */
+const {
+  parseArgs,
+  clientOptions,
+  requireArg,
+  loadBody,
+  parseKeyValueArgs,
+  printResult,
+  handleApiError,
+} = require('../command-helpers');
+const { request } = require('../api-client');
 
-const { db } = require('../db');
-
-function formatDate(timestamp) {
-  return new Date(timestamp).toISOString().split('T')[0];
-}
+const PROJECT_COLUMNS = [
+  { key: 'id', label: 'ID' },
+  { key: 'name', label: 'Name' },
+  { key: 'path', label: 'Path' },
+];
 
 async function run(argv) {
-  const projects = db.getProjects();
+  const { flags, args } = parseArgs(argv);
+  const [subcommand = 'list', ...rest] = args;
 
-  if (projects.length === 0) {
-    console.log('[claude-ws] No projects registered.');
-    console.log('[claude-ws] Use "claude-ws create <name> [path]" to register a project.');
-    process.exit(0);
+  try {
+    switch (subcommand) {
+      case 'list': {
+        const projects = await request({
+          method: 'GET',
+          path: '/api/projects',
+          ...clientOptions(flags),
+        });
+        printResult(projects, flags, { columns: PROJECT_COLUMNS });
+        return;
+      }
+
+      case 'get': {
+        const id = requireArg(rest[0], 'project id');
+        const project = await request({
+          method: 'GET',
+          path: `/api/projects/${id}`,
+          ...clientOptions(flags),
+        });
+        printResult(project, flags);
+        return;
+      }
+
+      case 'create': {
+        const name = requireArg(rest[0], 'project name');
+        const projectPath = requireArg(rest[1], 'project path');
+        const project = await request({
+          method: 'POST',
+          path: '/api/projects',
+          body: { name, path: projectPath },
+          ...clientOptions(flags),
+        });
+        printResult(project, flags);
+        return;
+      }
+
+      case 'update': {
+        const id = requireArg(rest[0], 'project id');
+        const body = loadBody(flags) || parseKeyValueArgs(rest.slice(1));
+        const project = await request({
+          method: 'PUT',
+          path: `/api/projects/${id}`,
+          body,
+          ...clientOptions(flags),
+        });
+        printResult(project, flags);
+        return;
+      }
+
+      case 'delete': {
+        const id = requireArg(rest[0], 'project id');
+        const result = await request({
+          method: 'DELETE',
+          path: `/api/projects/${id}`,
+          ...clientOptions(flags),
+        });
+        printResult(result, flags);
+        return;
+      }
+
+      default:
+        throw new Error(`Unknown projects subcommand: ${subcommand}`);
+    }
+  } catch (error) {
+    handleApiError(error);
   }
-
-  console.log('Registered Projects:');
-  console.log('');
-
-  const idWidth = Math.max(8, ...projects.map((p) => p.id.length));
-  const nameWidth = Math.max(10, ...projects.map((p) => p.name.length));
-
-  const header = 'ID'.padEnd(idWidth) + '  ' + 'Name'.padEnd(nameWidth) + '  ' + 'Created'.padEnd(12);
-  console.log(header);
-  console.log('='.repeat(header.length));
-
-  for (const project of projects) {
-    const id = project.id.padEnd(idWidth);
-    const name = project.name.padEnd(nameWidth);
-    const created = formatDate(project.created_at);
-    console.log(id + '  ' + name + '  ' + created);
-  }
-
-  console.log('');
-  console.log('Total: ' + projects.length + ' project(s)');
-
-  process.exit(0);
 }
 
 module.exports = { run };

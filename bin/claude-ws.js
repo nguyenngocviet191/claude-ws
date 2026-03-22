@@ -13,30 +13,17 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { runSubcommand, hasUnknownCommand } = require('./lib/subcommands');
 
-// ── Subcommand detection ──────────────────────────────────────────────
-// If the first positional arg is a known subcommand, delegate and exit.
-// Otherwise, fall through to the existing foreground startup logic.
-const SUBCOMMANDS = [
-  'start',
-  'stop',
-  'status',
-  'logs',
-  'open',
-  'create',
-  'projects',
-  'add-task',
-  'tasks',
-  'run-task',
-  'git',
-];
-const _firstArg = process.argv[2];
-if (SUBCOMMANDS.includes(_firstArg)) {
-  require(`./lib/commands/${_firstArg}`).run(process.argv.slice(3));
-  // The command handles process.exit — nothing else to do here.
+if (runSubcommand(process.argv)) {
   return;
 }
-// ── End subcommand detection ──────────────────────────────────────────
+
+if (hasUnknownCommand(process.argv)) {
+  console.error(`[claude-ws] Unknown command: ${process.argv[2]}`);
+  console.error('[claude-ws] Use --help to view available API subcommands.');
+  process.exit(1);
+}
 
 const isWindows = process.platform === 'win32';
 
@@ -83,63 +70,57 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
 Claude Workspace - Visual workspace for Claude Code
 
 Usage:
-  claude-ws [options]          Start server in foreground (blocks terminal)
-  claude-ws <command> [flags]  Daemon and project management
+  claude-ws [options]                 Start server in foreground
+  claude-ws <command> [subcommand]    Call Agentic SDK / REST API
 
 Commands:
-  Daemon Management:
-    start    Start as background daemon
-             --port, -p <port>   Server port (default: 8556)
-             --host <host>       Bind host (default: localhost)
-             --data-dir <dir>    Data directory
-             --log-dir <dir>     Log directory
-             --no-open           Don't open browser after start
-    stop     Stop the running daemon
-    status   Show daemon PID, URL, and health
-    logs     Tail daemon log files
-             -f, --follow        Follow log output
-             -n, --lines <N>     Number of lines (default: 50)
-             -e, --error         Show error log instead
+  auth            GET/POST /api/auth/verify
+  projects        /api/projects CRUD
+  tasks           /api/tasks CRUD + stats/conversation
+  attempts        /api/attempts CRUD + status/stream/answer
+  checkpoints     /api/tasks/:id/checkpoints and rewind/backfill
+  files           /api/files content/list/write/delete/metadata/ops
+  search          /api/search and /api/search/files
+  git             /api/git/*
+  shells          /api/shells
+  uploads         /api/uploads
+  agent-factory   /api/agent-factory/*
+  settings        /api/settings*
+  tunnel          /api/tunnel/*
+  filesystem      GET /api/filesystem
+  commands        GET /api/commands
+  models          GET /api/models
+  language        GET /api/language/definition
+  code            POST /api/code/inline-edit
 
-  Project Management:
-    create <name> [path]    Register a new project in the workspace
-    projects                List all registered projects
-    open [path-or-id]       Open browser to running instance or specific project
-
-  Task Management:
-    add-task <title> [desc]  Add a new task to the current project
-    tasks [status]           List tasks for the current project
-    run-task <task-id> [prompt]  Start an agent attempt for a task
-
-  Git Checkpoints:
-    git snapshot     Create a git checkpoint commit for current project
-    git rewind <id>  Reset to a specific checkpoint state
-    git list         Show history of checkpoints created by claude-ws
+Aliases:
+  create <name> <path>             -> projects create
+  add-task <title> [description]   -> tasks create in current project
+  run-task <task-id> [prompt]      -> attempts create --stream
+  open [url]                       -> local browser helper
 
 Options:
   -v, --version    Show version number
   -h, --help       Show this help message
+  --api-url        Override API base URL
+  --api-key        Override API key
+  --json           Print raw JSON
 
 Environment:
   .env: Loaded from current working directory (./.env)
-  Database: Stored in ./data/claude-ws.db (or DATA_DIR env)
-  Config:  ~/.claude-ws/config.json (port, host, dataDir, logDir)
+  AGENTIC_SDK_BASE_URL or AGENTIC_SDK_HOST/PORT
+  API_ACCESS_KEY for authenticated requests
 
 Examples:
-  claude-ws                        Start server in foreground
-  claude-ws start                  Start as daemon
-  claude-ws start --port 3000      Start daemon on port 3000
-  claude-ws status                 Check if daemon is running
-  claude-ws logs -f                Follow daemon logs
-  claude-ws stop                   Stop the daemon
-  claude-ws create my-project      Register current directory as project
-  claude-ws create my-app ./src    Register ./src as project
-  claude-ws projects               List all projects
-  claude-ws open my-project        Open project in browser
-  claude-ws add-task "Fix bug"     Add new task to current project
-  claude-ws tasks                  List all tasks
-  claude-ws run-task task-123      Run a task
-  claude-ws git list               Show checkpoint history
+  claude-ws projects list
+  claude-ws create my-app .
+  claude-ws tasks in_progress
+  claude-ws tasks stats task_123
+  claude-ws run-task task_123 "Implement auth"
+  claude-ws attempts stream atmp_123
+  claude-ws files read --project-path . src/index.ts
+  claude-ws git status --project-path .
+  claude-ws settings provider
 
 For more info: https://github.com/Claude-Workspace/claude-ws
   `);
