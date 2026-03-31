@@ -37,6 +37,7 @@ interface TaskStore {
   updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
   renameTask: (taskId: string, title: string) => Promise<void>;
   updateTaskDescription: (taskId: string, description: string | null) => Promise<void>;
+  cleanupWorktree: (taskId: string) => Promise<void>;
 }
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
@@ -408,6 +409,26 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       if (selected?.id === taskId) {
         set({ selectedTask: { ...selected, chatInit: !chatInit } });
       }
+    }
+  },
+
+  cleanupWorktree: async (taskId: string) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/worktree`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to cleanup worktree');
+      }
+
+      // Update local state
+      get().updateTask(taskId, { useWorktree: false, worktreePath: null });
+
+      log.info({ taskId }, 'Worktree cleaned up successfully');
+    } catch (error) {
+      log.error({ error, taskId }, 'Error cleaning up worktree');
+      throw error;
     }
   },
 }));

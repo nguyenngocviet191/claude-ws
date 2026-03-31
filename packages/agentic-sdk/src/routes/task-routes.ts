@@ -2,6 +2,7 @@
  * Task routes - CRUD, reorder, attempts, and conversation history
  */
 import { FastifyInstance } from 'fastify';
+import { removeWorktreeForTask } from '../lib/git-worktree-manager';
 
 export default async function taskRoutes(fastify: FastifyInstance) {
   fastify.get('/api/tasks', async (request, _reply) => {
@@ -16,9 +17,23 @@ export default async function taskRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/api/tasks', async (request, reply) => {
-    const { projectId, title, description } = request.body as any;
+    const { projectId, title, description, status, useWorktree } = request.body as any;
     if (!projectId || !title) return reply.code(400).send({ error: 'projectId and title are required' });
-    const task = await fastify.services.task.create({ projectId, title, description });
+
+    // If useWorktree is true, we need to get the project path first
+    let projectPath: string | undefined;
+    if (useWorktree) {
+      const project = await fastify.services.project.getById(projectId);
+      if (!project) {
+        return reply.code(404).send({ error: 'Project not found' });
+      }
+      projectPath = project.path;
+    }
+
+    const task = await fastify.services.task.createWithWorktree(
+      { projectId, title, description, status, useWorktree },
+      projectPath
+    );
     return reply.code(201).send(task);
   });
 
@@ -58,5 +73,44 @@ export default async function taskRoutes(fastify: FastifyInstance) {
     const conversation = await fastify.services.task.getConversation((request.params as any).id);
     if (!conversation) return reply.code(404).send({ error: 'Conversation not found' });
     return conversation;
+  });
+
+  // DELETE /api/tasks/:id/worktree - Remove worktree for a task
+  fastify.delete('/api/tasks/:id/worktree', async (request, reply) => {
+    const taskId = (request.params as any).id;
+
+    // Get task to check if it uses worktree
+    const task = await fastify.services.task.getById(taskId);
+    if (!task) {
+      return reply.code(404).send({ error: 'Task not found' });
+    }
+
+    if (!task.useWorktree) {
+      return reply.code(400).send({ error: 'Task does not use a worktree' });
+    }
+
+    // Get project path
+    const project = await fastify.services.project.getById(task.projectId);
+    if (!project) {
+      return reply.code(404).send({ error: 'Project not found' });
+    }
+
+    // Remove the worktree
+    const worktreeResult = await removeWorktreeForTask(taskId, project.path);
+
+    if (!worktreeResult.success) {
+      return reply.code(500).send({ error: worktreeResult.error || 'Failed to remove worktree' });
+    }
+
+    // Update task to clear worktree flags
+    await fastify.services.task.update(taskId, {
+      useWorktree: false,
+      worktreePath: null,
+    });
+
+    return {
+      success: true,
+      message: 'Worktree removed successfully',
+    };
   });
 }

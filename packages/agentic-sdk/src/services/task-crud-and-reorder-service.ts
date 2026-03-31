@@ -4,6 +4,7 @@
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import * as schema from '../db/database-schema';
 import { generateId } from '../lib/nanoid-id-generator';
+import { createWorktreeForTask } from '../lib/git-worktree-manager';
 
 export function createTaskService(db: any) {
   return {
@@ -46,6 +47,51 @@ export function createTaskService(db: any) {
       };
       await db.insert(schema.tasks).values(task);
       return task;
+    },
+
+    /**
+     * Create task with optional worktree creation.
+     * If useWorktree is true, creates a git worktree for the task before creating the task record.
+     * @param data - Task data including projectId, title, description, status, useWorktree
+     * @param projectPath - Path to the project directory (required if useWorktree is true)
+     * @returns Created task with worktreePath if worktree was created
+     * @throws Error if worktree creation fails
+     */
+    async createWithWorktree(
+      data: { projectId: string; title: string; description?: string; status?: string; useWorktree?: boolean },
+      projectPath?: string
+    ) {
+      // First, create the task to get the taskId
+      const newTask = await this.create(data);
+
+      // Handle worktree creation if requested
+      if (data.useWorktree) {
+        if (!projectPath) {
+          // Rollback: delete the task we just created
+          await this.remove(newTask.id);
+          throw new Error('projectPath is required when useWorktree is true');
+        }
+
+        // Create worktree for the task
+        const worktreeResult = await createWorktreeForTask({
+          taskId: newTask.id,
+          projectPath,
+        });
+
+        if (!worktreeResult.success) {
+          // Rollback: delete the task if worktree creation failed
+          await this.remove(newTask.id);
+          throw new Error(worktreeResult.error || 'Failed to create worktree');
+        }
+
+        // Update task with worktree path
+        return await this.update(newTask.id, {
+          useWorktree: true,
+          worktreePath: worktreeResult.worktreePath,
+        });
+      }
+
+      return newTask;
     },
 
     async update(id: string, data: Partial<schema.Task>) {

@@ -2,6 +2,8 @@
 
 Claude Workspace uses SQLite for local-first data storage. The schema is defined via Drizzle ORM in `packages/agentic-sdk/src/db/database-schema.ts` and applies to both the main app and agentic-sdk.
 
+For runtime database file locations, multiple SQLite files, and why inspected table lists may differ between `claude-ws.db` and `agentic-sdk.db`, see `docs/database-runtime.md`.
+
 ## Schema Initialization Strategy
 
 **Dual Migration Approach:**

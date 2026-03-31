@@ -17,8 +17,7 @@ sequenceDiagram
     User->>API: POST /api/tasks (useWorktree: true)
     API->>SVC: create(taskData)
     SVC->>GWM: setupWorktree(taskId, projectPath)
-    GWM->>Git: git checkout -b worktree/task-ID
-    GWM->>Git: git worktree add .worktrees/task-ID worktree/task-ID
+    GWM->>Git: git worktree add -b worktree/task-ID ../project-worktree-ID
     GWM-->>SVC: return worktreePath
     SVC->>DB: insert task (with worktreePath)
     SVC-->>API: Task Created
@@ -35,8 +34,14 @@ sequenceDiagram
 ## Các thành phần chính
 
 ### 1. Cấu trúc thư mục
-Các worktree sẽ được lưu trữ trong thư mục ẩn của project:
-- `[Project Root]/.worktrees/task-[TASK_ID]/`
+Các worktree sẽ được lưu trữ ở **cùng cấp với project** (ngoài project root):
+- Ví dụ project: `/path/to/my-project`
+- Worktree: `/path/to/my-project-worktree-task_[TASK_ID]/`
+
+Lợi ích:
+- Không ảnh hưởng `.gitignore` của project
+- Dễ dàng phân biệt project gốc vs worktree
+- Dọn dẹp đơn giản hơn
 
 ### 2. Quản lý Branch
 - Mỗi task sử dụng worktree sẽ có một branch riêng (ví dụ: `agent/task-fix-bug-123`).

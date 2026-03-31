@@ -23,6 +23,13 @@ export { createProjectService } from './services/project-crud-service';
 
 // --- Tasks ---
 export { createTaskService } from './services/task-crud-and-reorder-service';
+export {
+  createWorktreeForTask,
+  removeWorktreeForTask,
+  worktreeExists,
+  type WorktreeOptions,
+  type WorktreeResult,
+} from './lib/git-worktree-manager';
 
 // --- Attempts ---
 export { createAttemptService } from './services/attempt-crud-and-logs-service';

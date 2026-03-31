@@ -1,7 +1,6 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import fs from 'fs';
 
 const execFileAsync = promisify(execFile);
 
@@ -22,7 +21,8 @@ export interface WorktreeResult {
 
 /**
  * Creates a new Git worktree for a task.
- * Creates a branch `worktree/task-{taskId}` and a worktree at `.worktrees/task-{taskId}`.
+ * Creates a branch `worktree/task-{taskId}` and a worktree at the same level as the project:
+ * Example: /path/to/my-project -> /path/to/my-project-worktree-{taskId}
  */
 export async function createWorktreeForTask(
   options: WorktreeOptions
